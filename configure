@@ -1,0 +1,37 @@
+#!/bin/bash
+
+if [ `uname -a | grep kingfisher | wc -l` -eq 1 ]
+then
+  echo "CC=gcc" > Makefile
+  echo "CCFLAGS=-shared -pthread -fPIC -fwrapv -O2 -Wall -fno-strict-aliasing -march=native" >> Makefile
+  echo "INCLUDE=-I/home/michael/anaconda/include/python2.7" >> Makefile
+elif [ `uname -a | grep quaxo | wc -l` -eq 1 ]
+then
+  echo "CC=gcc44" > Makefile
+  echo "CCFLAGS=-shared -pthread -fPIC -fwrapv -O2 -Wall -fno-strict-aliasing -march=native" >> Makefile
+  echo "INCLUDE=-I/net/apps64/epd-7.3.2/include/python2.7" >> Makefile
+else
+  echo "unknown platform"
+  exit 1
+fi
+
+echo "" >> Makefile
+echo "all: ctm.so gates.so peps.so tebd.so util.so" >> Makefile
+
+for f in `ls *.pyx`
+do
+  n=`echo $f | cut -d "." -f 1`
+  echo "" >> Makefile
+  echo "$n.c: $n.pyx" >> Makefile
+  echo "	cython $n.pyx" >> Makefile
+  echo "" >> Makefile
+  echo "$n.so: $n.c" >> Makefile
+  echo "	\$(CC) \$(CCFLAGS) \$(INCLUDE) -o $n.so $n.c" >> Makefile
+done
+
+echo "" >> Makefile
+echo "clean:" >> Makefile
+echo "	rm *.c" >> Makefile
+echo "	rm *.so" >> Makefile
+echo "" >> Makefile
+

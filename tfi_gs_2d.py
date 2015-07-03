@@ -41,29 +41,22 @@ tebderr = float(sys.argv[5])
 maxiterations = int(sys.argv[6])
 statefile = sys.argv[7]
 
-basepath = "output_1x2/"
+basepath = "output_tfi/"
 
 if os.path.isfile(basepath + statefile):
     a, nns = peps.load(basepath + statefile)
     lut = util.build_lattice_lookup_table(nns, [4,4])
 else:
     sys.stderr.write("no file \"{:s}\" found! starting new calculation".format(basepath + statefile))
-    if statefile == "2x2":
-        a = [None]*4
-        for j in xrange(len(a)):
-            a[j] = peps.get_state_ising(1.8)
-        lut = util.build_lattice_lookup_table([[1,0,3,2],[2,3,0,1]], [4,4])
-    elif statefile == "1x2":
-        a = [None]*2
-        for j in xrange(len(a)):
-            a[j] = peps.get_state_ising(1.8)
-        lut = util.build_lattice_lookup_table([[1,0],[1,0]], [4,4])
-    else:
-        sys.stderr.write("unit cell {:s} unknown!".format(statefile))
-        raise ValueError("unit cell {:s} unknown!".format(statefile))
+    a = [None]*2
+    for j in xrange(len(a)):
+        a[j] = peps.get_state_ising(1.8)
+    lut = util.build_lattice_lookup_table([[1,0],[1,0]], [4,4])
 
 g1 = gates.exp_sigmax(0.5*tau*h)
+g1 = [(0, g1), (1, g1)]
 g2 = gates.exp_sigmaz_sigmaz(tau)
+g2 = [(0, 0, g2), (0, 1, g2), (1, 0, g2), (1, 1, g2)]
 
 logfilename = "imtimeev_E_D={:d}_chi={:d}_h={:e}_tau={:e}.dat".format(D, chi, h, tau)
 logfile = open(basepath + logfilename, "a")
