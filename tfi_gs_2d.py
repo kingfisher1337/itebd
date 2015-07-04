@@ -50,7 +50,8 @@ else:
     sys.stderr.write("no file \"{:s}\" found! starting new calculation".format(basepath + statefile))
     a = [None]*2
     for j in xrange(len(a)):
-        a[j] = peps.get_state_ising(1.8)
+        #a[j] = peps.get_state_ising(1.8)
+        a[j] = peps.get_state_random_rotsymm(2, D)
     lut = util.build_lattice_lookup_table([[1,0],[1,0]], [4,4])
 
 g1 = gates.exp_sigmax(0.5*tau*h)

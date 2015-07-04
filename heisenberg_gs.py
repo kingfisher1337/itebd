@@ -8,6 +8,7 @@ import util
 import sys
 import os
 
+J = -1
 D = int(sys.argv[1])
 chi = int(sys.argv[2])
 tau = float(sys.argv[3])
@@ -39,7 +40,7 @@ def test_fct(lut):
                 cxx += e2.contract(X[j], X[lut[j,0,1]]) / norm
                 cyy += e2.contract(Y[j], Y[lut[j,0,1]]) / norm
                 czz += e2.contract(Z[j], Z[lut[j,0,1]]) / norm
-            return np.real((cxx + cyy + czz) / (2*n))
+            return np.real(J * (cxx + cyy + czz) / (2*n))
         return test_fct_impl2
     return test_fct_impl
 
@@ -48,15 +49,14 @@ if os.path.isfile(basepath + statefile):
     a, nns = peps.load(basepath + statefile)
     lut = util.build_lattice_lookup_table(nns, [4,4])
 else:
-    a = [None]*2
-    for j in xrange(len(a)):
-        a[j] = peps.get_state_ising(0.1)
+    #a = [peps.get_state_random_rotsymm(2, D, complex)] * 2
+    a = [peps.get_state_random_rotsymm(2, D) + 1j*peps.get_state_random_rotsymm(2, D)] * 2
     lut = util.build_lattice_lookup_table([[1,0],[1,0]], [4,4])
 
 g1 = []
-expxx = gates.exp_sigmax_sigmax(-tau)
-expyy = gates.exp_sigmay_sigmay(-tau)
-expzz = gates.exp_sigmaz_sigmaz(-tau)
+expxx = gates.exp_sigmax_sigmax(-J*tau)
+expyy = gates.exp_sigmay_sigmay(-J*tau)
+expzz = gates.exp_sigmaz_sigmaz(-J*tau)
 g2 = [(0, 0, expxx), (0, 1, expxx), (1, 0, expxx), (1, 1, expxx),
       (0, 0, expyy), (0, 1, expyy), (1, 0, expyy), (1, 1, expyy),
       (0, 0, expzz), (0, 1, expzz), (1, 0, expzz), (1, 1, expzz)]

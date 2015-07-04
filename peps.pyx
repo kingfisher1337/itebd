@@ -4,7 +4,7 @@ from util import PeriodicArray
 import util
 
 def get_state_pm(D=1, dtype=float):
-    return np.ones((2,D,D,D,D))
+    return np.ones((2,D,D,D,D), dtype=dtype)
 
 def get_state_fm0(D=1, dtype=float):
     a = np.zeros((2,D), dtype=dtype)
@@ -37,6 +37,18 @@ def get_state_ising_from_theta(theta, dtype=float):
 def get_state_ising(T, dtype=float):
     theta = 0 if T == 0 else 0.5 * np.arcsin(np.exp(-1.0/T))
     return get_state_ising_from_theta(theta, dtype)
+
+def get_state_random(p, D, dtype=float):
+    if dtype == complex:
+        return np.random.rand(p, D, D, D, D) + 1j*np.random.rand(p, D, D, D, D)
+    else:
+        return np.random.rand(p, D, D, D, D)
+def get_state_random_hermitian(p, D, dtype=float):
+    a = get_state_random(p, D, dtype)
+    return a + a.swapaxes(1,3).conj() + a.swapaxes(2,4).conj() + a.transpose([0,3,4,1,2])
+def get_state_random_rotsymm(p, D, dtype=float):
+    a = get_state_random(p, D, dtype)
+    return a + a.transpose([0,2,3,4,1]) + a.transpose([0,3,4,1,2]) + a.transpose([0,4,1,2,3])
 
 def make_double_layer(a, b=None, o=None):
     s = a.shape    
