@@ -290,127 +290,144 @@ def _renormalise_row_transfer_tensor(t, a, p1, p2):
     tmp /= np.max(np.abs(tmp))
     return tmp
 
-def _ctmrg_step_horizontal(a, e, chi):
-    n = len(a[0])
-    p1 = [None] * n
-    p2 = [None] * n
-    p3 = [None] * n
-    p4 = [None] * n
-    
-    for j in xrange(n):
-        lut = e.lut[j]
-        tmp = _contract_big_corner(e.c1[j], e.t1[lut[1,0]], e.t4[lut[0,1]], a[0][lut[1,1]])
-        tmp2 = _contract_big_corner(e.c2[lut[3,0]], e.t2[lut[3,1]], e.t1[lut[2,0]], a[1][lut[2,1]])
-        tmp = dot(tmp, tmp2)
-        r1 = qr(tmp.T)[1]
-        l2 = qr(tmp)[1]
-        
-        tmp = _contract_big_corner(e.c3[lut[3,3]], e.t3[lut[2,3]], e.t2[lut[3,2]], a[2][lut[2,2]])
-        tmp2 = _contract_big_corner(e.c4[lut[0,3]], e.t4[lut[0,2]], e.t3[lut[1,3]], a[3][lut[1,2]])
-        tmp = dot(tmp, tmp2)
-        r2 = qr(tmp)[1]
-        l1 = qr(tmp.T)[1]
-        
-        u, s, v = svd(dot(r1, r2.T))
-        chi2 = np.min([np.count_nonzero(s), chi])
-        u = u[:,:chi2]
-        s = 1.0 / np.sqrt(s[:chi2])
-        v = v[:chi2]
-        
-        u2, s2, v2 = svd(dot(l1, l2.T))
-        chi2 = np.min([np.count_nonzero(s2), chi])
-        u2 = u2[:,:chi2]
-        s2 = 1.0 / np.sqrt(s2[:chi2])
-        v2 = v2[:chi2]
-        
-        p1[lut[0,1]] = dot((u.conj()*s).T, r1) # <==> s u.H r1
-        p2[lut[0,1]] = dot(r2.T, v.conj().T)*s # <==> r2.T v.H s
-        p3[lut[3,2]] = dot((u2.conj()*s2).T, l1) # <==> s2 u2.H l1
-        p4[lut[3,2]] = dot(l2.T, v2.conj().T)*s2 # <==> l2.T v2.H s2
-        
-    c1_new = [None] * n
-    c2_new = [None] * n
-    c3_new = [None] * n
-    c4_new = [None] * n
-    t2_new = [None] * n
-    t4_new = [None] * n
-    
-    for j in xrange(n):
-        lut = e.lut[j]
-        c1_new[lut[1,0]] = _renormalise_corner1(e.c1[j], e.t1[lut[1,0]], p2[j])
-        c4_new[lut[1,0]] = _renormalise_corner2(e.c4[j], e.t3[lut[1,0]], p1[lut[0,-1]])
-        t4_new[lut[1,0]] = _renormalise_row_transfer_tensor(e.t4[j], a[0][lut[1,0]], p1[lut[0,-1]], p2[j])
-        c3_new[lut[-1,0]] = _renormalise_corner1(e.c3[j], e.t3[lut[-1,0]], p4[j])
-        c2_new[lut[-1,0]] = _renormalise_corner2(e.c2[j], e.t1[lut[-1,0]], p3[lut[0,1]])
-        t2_new[lut[-1,0]] = _renormalise_row_transfer_tensor(e.t2[j], a[2][lut[-1,0]], p3[lut[0,1]], p4[j])
-    
-    e.c1 = c1_new
-    e.c2 = c2_new
-    e.c3 = c3_new
-    e.c4 = c4_new
-    e.t2 = t2_new
-    e.t4 = t4_new
+#def _ctmrg_step_horizontal(a, e, chi):
+#    n = len(a[0])
+#    p1 = [None] * n
+#    p2 = [None] * n
+#    p3 = [None] * n
+#    p4 = [None] * n
+#    
+#    for j in xrange(n):
+#        lut = e.lut[j]
+#        tmp = _contract_big_corner(e.c1[j], e.t1[lut[1,0]], e.t4[lut[0,1]], a[0][lut[1,1]])
+#        tmp2 = _contract_big_corner(e.c2[lut[3,0]], e.t2[lut[3,1]], e.t1[lut[2,0]], a[1][lut[2,1]])
+#        tmp = dot(tmp, tmp2)
+#        r1 = qr(tmp.T)[1]
+#        l2 = qr(tmp)[1]
+#        
+#        tmp = _contract_big_corner(e.c3[lut[3,3]], e.t3[lut[2,3]], e.t2[lut[3,2]], a[2][lut[2,2]])
+#        tmp2 = _contract_big_corner(e.c4[lut[0,3]], e.t4[lut[0,2]], e.t3[lut[1,3]], a[3][lut[1,2]])
+#        tmp = dot(tmp, tmp2)
+#        r2 = qr(tmp)[1]
+#        l1 = qr(tmp.T)[1]
+#        
+#        u, s, v = svd(dot(r1, r2.T))
+#        chi2 = np.min([np.count_nonzero(s), chi])
+#        u = u[:,:chi2]
+#        s = 1.0 / np.sqrt(s[:chi2])
+#        v = v[:chi2]
+#        
+#        u2, s2, v2 = svd(dot(l1, l2.T))
+#        chi2 = np.min([np.count_nonzero(s2), chi])
+#        u2 = u2[:,:chi2]
+#        s2 = 1.0 / np.sqrt(s2[:chi2])
+#        v2 = v2[:chi2]
+#        
+#        p1[lut[0,1]] = dot((u.conj()*s).T, r1) # <==> s u.H r1
+#        p2[lut[0,1]] = dot(r2.T, v.conj().T)*s # <==> r2.T v.H s
+#        p3[lut[3,2]] = dot((u2.conj()*s2).T, l1) # <==> s2 u2.H l1
+#        p4[lut[3,2]] = dot(l2.T, v2.conj().T)*s2 # <==> l2.T v2.H s2
+#        
+#    c1_new = [None] * n
+#    c2_new = [None] * n
+#    c3_new = [None] * n
+#    c4_new = [None] * n
+#    t2_new = [None] * n
+#    t4_new = [None] * n
+#    
+#    for j in xrange(n):
+#        lut = e.lut[j]
+#        c1_new[lut[1,0]] = _renormalise_corner1(e.c1[j], e.t1[lut[1,0]], p2[j])
+#        c4_new[lut[1,0]] = _renormalise_corner2(e.c4[j], e.t3[lut[1,0]], p1[lut[0,-1]])
+#        t4_new[lut[1,0]] = _renormalise_row_transfer_tensor(e.t4[j], a[0][lut[1,0]], p1[lut[0,-1]], p2[j])
+#        c3_new[lut[-1,0]] = _renormalise_corner1(e.c3[j], e.t3[lut[-1,0]], p4[j])
+#        c2_new[lut[-1,0]] = _renormalise_corner2(e.c2[j], e.t1[lut[-1,0]], p3[lut[0,1]])
+#        t2_new[lut[-1,0]] = _renormalise_row_transfer_tensor(e.t2[j], a[2][lut[-1,0]], p3[lut[0,1]], p4[j])
+#    
+#    e.c1 = c1_new
+#    e.c2 = c2_new
+#    e.c3 = c3_new
+#    e.c4 = c4_new
+#    e.t2 = t2_new
+#    e.t4 = t4_new
+#
+#def _ctmrg_step_vertical(a, e, chi):
+#    n = len(a[0])
+#    p1 = [None] * n
+#    p2 = [None] * n
+#    p3 = [None] * n
+#    p4 = [None] * n
+#    
+#    for j in xrange(n):
+#        lut = e.lut[j]
+#        tmp = _contract_big_corner(e.c2[j], e.t2[lut[0,1]], e.t1[lut[-1,0]], a[1][lut[-1,1]])
+#        tmp2 = _contract_big_corner(e.c3[lut[0,3]], e.t3[lut[-1,3]], e.t2[lut[0,2]], a[2][lut[-1,2]])
+#        tmp = dot(tmp, tmp2)
+#        r1 = qr(tmp.T)[1]
+#        l2 = qr(tmp)[1]
+#        
+#        tmp = _contract_big_corner(e.c4[lut[-3,3]], e.t4[lut[-3,2]], e.t3[lut[-2,3]], a[3][lut[-2,2]])
+#        tmp2 = _contract_big_corner(e.c1[lut[-3,0]], e.t1[lut[-2,0]], e.t4[lut[-3,1]], a[0][lut[-2,1]])
+#        tmp = dot(tmp, tmp2)
+#        r2 = qr(tmp)[1]
+#        l1 = qr(tmp.T)[1]
+#        
+#        u, s, v = svd(dot(r1, r2.T))
+#        chi2 = np.min([np.count_nonzero(s), chi])
+#        u = u[:,:chi2]
+#        s = 1.0 / np.sqrt(s[:chi2])
+#        v = v[:chi2]
+#        
+#        u2, s2, v2 = svd(dot(l1, l2.T))
+#        chi2 = np.min([np.count_nonzero(s2), chi])
+#        u2 = u2[:,:chi2]
+#        s2 = 1.0 / np.sqrt(s2[:chi2])
+#        v2 = v2[:chi2]
+#        
+#        p1[lut[-1,0]] = dot((u.conj()*s).T, r1) # <==> s u.H r1
+#        p2[lut[-1,0]] = dot(r2.T, v.conj().T)*s # <==> r2.T v.H s
+#        p3[lut[-2,3]] = dot((u2.conj()*s2).T, l1) # <==> s2 u2.H l1
+#        p4[lut[-2,3]] = dot(l2.T, v2.conj().T)*s2 # <==> l2.T v2.H s2
+#        
+#    c1_new = [None] * n
+#    c2_new = [None] * n
+#    c3_new = [None] * n
+#    c4_new = [None] * n
+#    t1_new = [None] * n
+#    t3_new = [None] * n
+#    
+#    for j in xrange(n):
+#        lut = e.lut[j]
+#        c2_new[lut[0,1]] = _renormalise_corner1(e.c2[j], e.t2[lut[0,1]], p2[j])
+#        c1_new[lut[0,1]] = _renormalise_corner2(e.c1[j], e.t4[lut[0,1]], p1[lut[1,0]])
+#        t1_new[lut[0,1]] = _renormalise_row_transfer_tensor(e.t1[j], a[1][lut[0,1]], p1[lut[1,0]], p2[j])
+#        c4_new[lut[0,-1]] = _renormalise_corner1(e.c4[j], e.t4[lut[0,-1]], p4[j])
+#        c3_new[lut[0,-1]] = _renormalise_corner2(e.c3[j], e.t2[lut[0,-1]], p3[lut[-1,0]])
+#        t3_new[lut[0,-1]] = _renormalise_row_transfer_tensor(e.t3[j], a[3][lut[0,-1]], p3[lut[-1,0]], p4[j])
+#    
+#    e.c1 = c1_new
+#    e.c2 = c2_new
+#    e.c3 = c3_new
+#    e.c4 = c4_new
+#    e.t1 = t1_new
+#    e.t3 = t3_new
 
-def _ctmrg_step_vertical(a, e, chi):
-    n = len(a[0])
-    p1 = [None] * n
-    p2 = [None] * n
-    p3 = [None] * n
-    p4 = [None] * n
+def _build_projectors(chi, c1, c2, c3, c4, t1, t2, t3, t4, t5, t6, t7, t8, a1, a2, a3, a4):
+    tmp = _contract_big_corner(c1, t1, t8, a1)
+    tmp2 = _contract_big_corner(c2, t3, t2, a2)
+    r1 = qr(dot(tmp, tmp2).T)[1]
+    tmp = _contract_big_corner(c3, t5, t4, a4)
+    tmp2 = _contract_big_corner(c4, t7, t6, a3)
+    r2 = qr(dot(tmp, tmp2))[1]
     
-    for j in xrange(n):
-        lut = e.lut[j]
-        tmp = _contract_big_corner(e.c2[j], e.t2[lut[0,1]], e.t1[lut[-1,0]], a[1][lut[-1,1]])
-        tmp2 = _contract_big_corner(e.c3[lut[0,3]], e.t3[lut[-1,3]], e.t2[lut[0,2]], a[2][lut[-1,2]])
-        tmp = dot(tmp, tmp2)
-        r1 = qr(tmp.T)[1]
-        l2 = qr(tmp)[1]
-        
-        tmp = _contract_big_corner(e.c4[lut[-3,3]], e.t4[lut[-3,2]], e.t3[lut[-2,3]], a[3][lut[-2,2]])
-        tmp2 = _contract_big_corner(e.c1[lut[-3,0]], e.t1[lut[-2,0]], e.t4[lut[-3,1]], a[0][lut[-2,1]])
-        tmp = dot(tmp, tmp2)
-        r2 = qr(tmp)[1]
-        l1 = qr(tmp.T)[1]
-        
-        u, s, v = svd(dot(r1, r2.T))
-        chi2 = np.min([np.count_nonzero(s), chi])
-        u = u[:,:chi2]
-        s = 1.0 / np.sqrt(s[:chi2])
-        v = v[:chi2]
-        
-        u2, s2, v2 = svd(dot(l1, l2.T))
-        chi2 = np.min([np.count_nonzero(s2), chi])
-        u2 = u2[:,:chi2]
-        s2 = 1.0 / np.sqrt(s2[:chi2])
-        v2 = v2[:chi2]
-        
-        p1[lut[-1,0]] = dot((u.conj()*s).T, r1) # <==> s u.H r1
-        p2[lut[-1,0]] = dot(r2.T, v.conj().T)*s # <==> r2.T v.H s
-        p3[lut[-2,3]] = dot((u2.conj()*s2).T, l1) # <==> s2 u2.H l1
-        p4[lut[-2,3]] = dot(l2.T, v2.conj().T)*s2 # <==> l2.T v2.H s2
-        
-    c1_new = [None] * n
-    c2_new = [None] * n
-    c3_new = [None] * n
-    c4_new = [None] * n
-    t1_new = [None] * n
-    t3_new = [None] * n
+    u, s, v = svd(dot(r1, r2.T))
+    chi2 = np.min([np.count_nonzero(s), chi])
+    u = u[:,:chi2]
+    s = 1.0 / np.sqrt(s[:chi2])
+    v = v[:chi2]
     
-    for j in xrange(n):
-        lut = e.lut[j]
-        c2_new[lut[0,1]] = _renormalise_corner1(e.c2[j], e.t2[lut[0,1]], p2[j])
-        c1_new[lut[0,1]] = _renormalise_corner2(e.c1[j], e.t4[lut[0,1]], p1[lut[1,0]])
-        t1_new[lut[0,1]] = _renormalise_row_transfer_tensor(e.t1[j], a[1][lut[0,1]], p1[lut[1,0]], p2[j])
-        c4_new[lut[0,-1]] = _renormalise_corner1(e.c4[j], e.t4[lut[0,-1]], p4[j])
-        c3_new[lut[0,-1]] = _renormalise_corner2(e.c3[j], e.t2[lut[0,-1]], p3[lut[-1,0]])
-        t3_new[lut[0,-1]] = _renormalise_row_transfer_tensor(e.t3[j], a[3][lut[0,-1]], p3[lut[-1,0]], p4[j])
-    
-    e.c1 = c1_new
-    e.c2 = c2_new
-    e.c3 = c3_new
-    e.c4 = c4_new
-    e.t1 = t1_new
-    e.t3 = t3_new
+    # return s u.H r1, r2.T v.H s
+    return dot((u.conj()*s).T, r1), dot(r2.T, v.conj().T)*s
 
 def _ctmrg_step(a0, a1, a2, a3, c1, c2, c3, c4, t1, t2, t3, t4, lut, chi, dx):
     n = len(a0)
@@ -424,22 +441,14 @@ def _ctmrg_step(a0, a1, a2, a3, c1, c2, c3, c4, t1, t2, t3, t4, lut, chi, dx):
     
     for j in xrange(n):
         L = lut[j]
-        tmp = _contract_big_corner(c1[j], t1[L[-dx1,-dx2]], t4[L[dy1,dy2]], a0[L[-dx1+dy1,-dx2+dy2]])
-        tmp2 = _contract_big_corner(c2[L[-3*dx1,-3*dx2]], t2[L[-3*dx1+dy1,-3*dx2+dy2]], t1[L[-2*dx1,-2*dx2]], a1[L[-2*dx1+dy1,-2*dx2+dy2]])
-        r1 = qr(dot(tmp, tmp2).T)[1]
-        
-        tmp = _contract_big_corner(c3[L[-3*dx1+3*dy1,-3*dx2+3*dy2]], t3[L[-2*dx1+3*dy1,-2*dx2+3*dy2]], t2[L[-3*dx1+2*dy1,-3*dx2+2*dy2]], a2[L[-2*dx1+2*dy1,-2*dx2+2*dy2]])
-        tmp2 = _contract_big_corner(c4[L[3*dy1,3*dy2]], t4[L[2*dy1,2*dy2]], t3[L[-dx1+3*dy1,-dx2+3*dy2]], a3[L[dx1+2*dy1,dx2+2*dy2]])
-        r2 = qr(dot(tmp, tmp2))[1]
-        
-        u, s, v = svd(dot(r1, r2.T))
-        chi2 = np.min([np.count_nonzero(s), chi])
-        u = u[:,:chi2]
-        s = 1.0 / np.sqrt(s[:chi2])
-        v = v[:chi2]
-        
-        p1[L[dy1,dy2]] = dot((u.conj()*s).T, r1) # <==> s u.H r1
-        p2[L[dy1,dy2]] = dot(r2.T, v.conj().T)*s # <==> r2.T v.H s
+        p1[L[dy1,dy2]], p2[L[dy1,dy2]] = _build_projectors(chi,
+            c1[j], c2[L[-3*dx1,-3*dx2]], c3[L[-3*dx1+3*dy1,-3*dx2+3*dy2]], c4[L[3*dy1,3*dy2]],
+            t1[L[-dx1,-dx2]], t1[L[-2*dx1,-2*dx2]], 
+            t2[L[-3*dx1+dy1,-3*dx2+dy2]], t2[L[-3*dx1+2*dy1,-3*dx2+2*dy2]],
+            t3[L[-2*dx1+3*dy1,-2*dx2+3*dy2]], t3[L[-dx1+3*dy1,-dx2+3*dy2]],
+            t4[L[2*dy1,2*dy2]], t4[L[dy1,dy2]],
+            a0[L[-dx1+dy1,-dx2+dy2]], a1[L[-2*dx1+dy1,-2*dx2+dy2]],
+            a3[L[dx1+2*dy1,dx2+2*dy2]], a2[L[-2*dx1+2*dy1,-2*dx2+2*dy2]])
         
     c1_new = [None] * n
     c4_new = [None] * n
@@ -516,7 +525,83 @@ def ctmrg(a, lut, chi, env=None, tester=None, max_iterations=100000, verbose=Fal
     return env
 
 
-
+def ctmrg_post_tebd(a, lut, anew, bnew, j, orientation, chi, env):
+    e = env
+    anew = peps.make_double_layer(anew)
+    bnew = peps.make_double_layer(bnew)
+    
+    if orientation == 0: # horizontal
+        L = lut[lut[j,-1,-1]]
+        p1, p2 = _build_projectors(chi,
+            e.c1[L[0,0]], e.c2[L[3,0]], e.c3[L[3,3]], e.c4[L[0,3]],
+            e.t1[L[1,0]], e.t1[L[2,0]], e.t2[L[3,1]], e.t2[L[3,2]],
+            e.t3[L[2,3]], e.t3[L[1,3]], e.t4[L[0,2]], e.t4[L[0,1]],
+            anew, bnew.transpose([1,2,3,0]), 
+            a[L[1,2]].transpose([3,0,1,2]), a[L[2,2]].transpose([2,3,0,1]))
+        L = lut[lut[j,-1,-2]]
+        p3, p4 = _build_projectors(chi,
+            e.c1[L[0,0]], e.c2[L[3,0]], e.c3[L[3,3]], e.c4[L[0,3]],
+            e.t1[L[1,0]], e.t1[L[2,0]], e.t2[L[3,1]], e.t2[L[3,2]],
+            e.t3[L[2,3]], e.t3[L[1,3]], e.t4[L[0,2]], e.t4[L[0,1]],
+            a[L[1,1]], a[L[2,1]].transpose([1,2,3,0]),
+            anew.transpose([3,0,1,2]), bnew.transpose([2,3,0,1]))
+        e.c1[lut[j,0,-1]] = _renormalise_corner1(e.c1[lut[j,-1,-1]], e.t1[lut[j,0,-1]], p4)
+        e.c4[lut[j,0,1]] = _renormalise_corner2(e.c4[lut[j,-1,1]], e.t3[lut[j,0,1]], p1)
+        e.t4[j] = _renormalise_row_transfer_tensor(e.t4[lut[j,-1,0]], anew, p3, p2)
+        
+        L = lut[lut[j,-1,-1]]
+        p1, p2 = _build_projectors(chi,
+            e.c3[L[3,3]], e.c4[L[0,3]], e.c1[L[0,0]], e.c2[L[3,0]],
+            e.t3[L[2,3]], e.t3[L[1,3]], e.t4[L[0,2]], e.t4[L[0,1]],
+            e.t1[L[1,0]], e.t1[L[2,0]], e.t2[L[3,1]], e.t2[L[3,2]],
+            a[L[2,2]].transpose([2,3,0,1]), a[L[1,2]].transpose([3,0,1,2]), 
+            bnew.transpose([1,2,3,0]), anew)
+        L = lut[lut[j,-1,-2]]
+        p3, p4 = _build_projectors(chi,
+            e.c3[L[3,3]], e.c4[L[0,3]], e.c1[L[0,0]], e.c2[L[3,0]],
+            e.t3[L[2,3]], e.t3[L[1,3]], e.t4[L[0,2]], e.t4[L[0,1]],
+            e.t1[L[1,0]], e.t1[L[2,0]], e.t2[L[3,1]], e.t2[L[3,2]],
+            bnew.transpose([2,3,0,1]), anew.transpose([3,0,1,2]),
+            a[L[2,1]].transpose([1,2,3,0]), a[L[1,1]])
+        e.c3[lut[j,1,1]] = _renormalise_corner1(e.c3[lut[j,2,1]], e.t3[lut[j,1,1]], p2)
+        e.c2[lut[j,1,-1]] = _renormalise_corner2(e.c2[lut[j,2,-1]], e.t1[lut[j,1,-1]], p3)
+        e.t2[lut[j,1,0]] = _renormalise_row_transfer_tensor(e.t2[lut[j,2,0]], bnew.transpose([2,3,0,1]), p1, p4)
+    else: # vertical 
+        L = lut[lut[j,-1,-1]]
+        p1, p2 = _build_projectors(chi,
+            e.c2[L[3,0]], e.c3[L[3,3]], e.c4[L[0,3]], e.c1[L[0,0]],
+            e.t2[L[3,1]], e.t2[L[3,2]], e.t3[L[2,3]], e.t3[L[1,3]],
+            e.t4[L[0,2]], e.t4[L[0,1]], e.t1[L[1,0]], e.t1[L[2,0]],
+            anew, a[L[2,1]].transpose([1,2,3,0]),
+            bnew.transpose([3,0,1,2]), a[L[2,2]].transpose([2,3,0,1]))
+        L = lut[lut[j,-2,-1]]
+        p3, p4 = _build_projectors(chi,
+            e.c2[L[3,0]], e.c3[L[3,3]], e.c4[L[0,3]], e.c1[L[0,0]],
+            e.t2[L[3,1]], e.t2[L[3,2]], e.t3[L[2,3]], e.t3[L[1,3]],
+            e.t4[L[0,2]], e.t4[L[0,1]], e.t1[L[1,0]], e.t1[L[2,0]],
+            a[L[1,1]], anew.transpose([1,2,3,0]),
+            a[L[1,2]].transpose([3,0,1,2]), bnew.transpose([2,3,0,1]))
+        e.c2[lut[j,1,0]] = _renormalise_corner1(e.c2[lut[j,1,-1]], e.t2[lut[j,1,0]], p2)
+        e.c1[lut[j,-1,0]] = _renormalise_corner2(e.c1[lut[j,-1,-1]], e.t4[lut[j,-1,0]], p3)
+        e.t1[j] = _renormalise_row_transfer_tensor(e.t1[lut[j,0,-1]], anew.transpose([1,2,3,0]), p1, p4)
+        
+        L = lut[lut[j,-1,-1]]
+        p1, p2 = _build_projectors(chi,
+            e.c4[L[0,3]], e.c1[L[0,0]], e.c2[L[3,0]], e.c3[L[3,3]],
+            e.t4[L[0,2]], e.t4[L[0,1]], e.t1[L[1,0]], e.t1[L[2,0]],
+            e.t2[L[3,1]], e.t2[L[3,2]], e.t3[L[2,3]], e.t3[L[1,3]],
+            bnew.transpose([3,0,1,2]), anew,
+            a[L[2,2]].transpose([2,3,0,1]), a[L[2,1]].transpose([1,2,3,0]))
+        L = lut[lut[j,-2,1]]
+        p3, p4 = _build_projectors(chi,
+            e.c4[L[0,3]], e.c1[L[0,0]], e.c2[L[3,0]], e.c3[L[3,3]],
+            e.t4[L[0,2]], e.t4[L[0,1]], e.t1[L[1,0]], e.t1[L[2,0]],
+            e.t2[L[3,1]], e.t2[L[3,2]], e.t3[L[2,3]], e.t3[L[1,3]],
+            a[L[1,2]].transpose([3,0,1,2]), a[L[1,1]],
+            bnew.transpose([2,3,0,1]), anew.transpose([1,2,3,0]))
+        e.c4[lut[j,-1,1]] = _renormalise_corner1(e.c4[lut[j,0,-1]], e.t4[lut[j,-1,1]], p4)
+        e.c3[lut[j,1,1]] = _renormalise_corner2(e.c3[lut[j,1,2]], e.t3[lut[j,1,1]], p1)
+        e.t3[lut[j,0,1]] = _renormalise_row_transfer_tensor(e.t3[lut[j,0,2]], bnew.transpose([3,0,1,2]), p3, p2)
 
 class CTMEnvironment1x1Rotsymm:
     def __init__(self, c, t):

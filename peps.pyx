@@ -169,7 +169,7 @@ def save(a, lut, filename):
     
     f.close()
 
-def load(filename, lut_minsize=[4,4]):
+def load(filename, lut_minsize=[4,4], dtype=float):
     j = 0
     with open(filename, "r") as f:
         for line in f:
@@ -184,11 +184,11 @@ def load(filename, lut_minsize=[4,4]):
             elif j % 2 == 1:
                 if len(fields) == 6:
                     i = int(fields[0])
-                    a[i] = np.ndarray(map(int, fields[1:]))
+                    a[i] = np.ndarray(map(int, fields[1:]), dtype=dtype)
             else:
                 l = 0
                 for k in np.ndindex(a[i].shape):
-                    a[i][k] = float(fields[l])
+                    a[i][k] = dtype(fields[l])
                     l += 1
             j += 1
     return a, [nnsx, nnsy]

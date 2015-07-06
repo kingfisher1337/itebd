@@ -3,9 +3,7 @@ import tebd
 import gates
 import sys
 import peps
-from util import PeriodicArray
 import util
-import ctm
 import os
 
 from time import time
@@ -47,7 +45,7 @@ if os.path.isfile(basepath + statefile):
     a, nns = peps.load(basepath + statefile)
     lut = util.build_lattice_lookup_table(nns, [4,4])
 else:
-    sys.stderr.write("no file \"{:s}\" found! starting new calculation".format(basepath + statefile))
+    sys.stderr.write("no file \"{:s}\" found! starting new calculation\n".format(basepath + statefile))
     a = [None]*2
     for j in xrange(len(a)):
         #a[j] = peps.get_state_ising(1.8)

@@ -96,12 +96,17 @@ def _itebd_step(a, lut, g, j, orientation, env, chi, verbose, cost_err, cost_max
     if not converged:
         sys.stderr.write("[_itebd_step] warning: cost function did not converge! cost err is {:e}\n".format(err))
     
+#    if orientation == 0:
+#        a[j] = tdot(a3, X, [0,3]).swapaxes(1,2)
+#        a[lut[j,1,0]] = tdot(b3, Y, [0,3]).transpose([0,2,3,4,1])
+#    else:
+#        a[j] = tdot(a3, X, [0,3]).transpose([0,4,2,1,3])
+#        a[lut[j,0,1]] = tdot(b3, Y, [0,3])
+    
     if orientation == 0:
-        a[j] = tdot(a3, X, [0,3]).swapaxes(1,2)
-        a[lut[j,1,0]] = tdot(b3, Y, [0,3]).transpose([0,2,3,4,1])
+        return tdot(a3, X, [0,3]).swapaxes(1,2), tdot(b3, Y, [0,3]).transpose([0,2,3,4,1])
     else:
-        a[j] = tdot(a3, X, [0,3]).transpose([0,4,2,1,3])
-        a[lut[j,0,1]] = tdot(b3, Y, [0,3])
+        return tdot(a3, X, [0,3]).transpose([0,4,2,1,3]), tdot(b3, Y, [0,3])
         
 
 
@@ -148,12 +153,28 @@ def itebd(
             a[j] = tdot(g, a[j], [1,0])
             a[j] /= np.max(np.abs(a[j]))
         
-        for (j, orientation, g) in g2:
+        if len(g1) > 0:
             for k in xrange(n):
                 A[k] = peps.make_double_layer(a[k])
             tester = ctm.CTMRGGenericTester(ctmrg_test_fct(a, A), ctmrg_err, verbose)
             env = ctm.ctmrg(A, lut, ctmrg_chi, env, tester, ctmrg_max_iterations, verbose)
-            _itebd_step(a, lut, g, j, orientation, env, ctmrg_chi, verbose, 1e-12, 100000)
+        
+        for (j, orientation, g) in g2:
+#            for k in xrange(n):
+#                A[k] = peps.make_double_layer(a[k])
+#            tester = ctm.CTMRGGenericTester(ctmrg_test_fct(a, A), ctmrg_err, verbose)
+#            env = ctm.ctmrg(A, lut, ctmrg_chi, env, tester, ctmrg_max_iterations, verbose)
+#            a[j], a[lut[j,1,0] if orientation == 0 else lut[j,0,1]] = _itebd_step(
+#                a, lut, g, j, orientation, env, ctmrg_chi, verbose, 1e-12, 100000)
+            
+            anew, bnew = _itebd_step(a, lut, g, j, orientation, env, ctmrg_chi, verbose, 1e-12, 100000)
+            
+            ctm.ctmrg_post_tebd(A, lut, anew, bnew, j, orientation, ctmrg_chi, env)
+            a[j] = anew
+            A[j] = peps.make_double_layer(anew)
+            j2 = lut[j,1,0] if orientation == 0 else lut[j,0,1]
+            a[j2] = bnew
+            A[j2] = peps.make_double_layer(bnew)
             
         for (j, g) in g1:
             a[j] = tdot(g, a[j], [1,0])
