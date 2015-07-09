@@ -115,7 +115,7 @@ def get_energy(a, returnmz=False):
 
 f = open("output_varpeps_tfi/h_mz_E_D=3.dat", "w")
 
-#a0 = np.array([1]+[0]*41, dtype=float) # fm peps
+a0 = np.array([1]+[0]*41, dtype=float) # fm peps
 
 for h_it in np.concatenate([
     np.linspace(0, 2.7, 27, endpoint=False),
@@ -124,9 +124,10 @@ for h_it in np.concatenate([
     np.linspace(3.2, 3.4, 3)]):
     h = h_it
     
-    a0 = np.loadtxt("output_varpeps_tfi/params_D=2_h={:f}.dat".format(h))
-    a0 = vec2_to_vec3(a0)
-    res = scipy.optimize.minimize(get_energy, a0)
+    #a0 = np.loadtxt("output_varpeps_tfi/params_D=2_h={:f}.dat".format(h))
+    #a0 = vec2_to_vec3(a0)
+    #res = scipy.optimize.minimize(get_energy, a0)
+    res = scipy.optimize.basinhopping(get_energy, a0, niter=500, interval=10, T=2.0, stepsize=0.2, disp=True)
     a0 = res.x
     
     peps.save([get_symm_tensor(a0)], lut, "output_varpeps_tfi/state_D=3_h={:f}.peps".format(h))
