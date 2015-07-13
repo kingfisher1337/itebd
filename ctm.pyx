@@ -89,15 +89,18 @@ class CTMRGGenericTester:
         self.__period = 10
         self.__vals = np.array([1e10] * self.__period)
         self.__cnt = 0
+        self.__converged = False
     def test(self, e):
         nval = self.__f(e)
         curerr = np.max(np.abs(1 - nval / self.__vals))
         self.__cnt += 1
         self.__vals[self.__cnt % self.__period] = nval
-        return curerr < self.__err
+        self.__converged = curerr < self.__err
+        return self.__converged
     def get_value(self):
         return self.__vals[self.__cnt % len(self.__vals)]
-
+    def is_converged(self):
+        return self.__converged
 
 
 class CTMEnvironment:
