@@ -60,12 +60,12 @@ g1 = [(0, g1), (1, g1)]
 g2 = gates.exp_sigmaz_sigmaz(tau)
 g2 = [(0, 0, g2), (0, 1, g2), (1, 0, g2), (1, 1, g2)]
 
-logfilename = "imtimeev_E_D={:d}_chi={:d}_h={:e}_tau={:e}.dat".format(D, chi, h, tau)
+logfilename = "imtimeev_E_D={:d}_chi={:d}_h={:e}_tau={:.0e}.dat".format(D, chi, h, tau)
 logfile = open(basepath + logfilename, "a")
 a, env = tebd.itebd(a, lut, g1, g2, "random", err=tebderr, tebd_max_iterations=maxiterations, ctmrg_chi=chi, ctmrg_test_fct=test_fct(h, lut), verbose=True, logfile=logfile)
 logfile.close()
 
-peps.save(a, lut, basepath + "state_D={:d}_chi={:d}_h={:e}_tau={:e}.peps".format(D, chi, h, tau))
+peps.save(a, lut, basepath + "state_D={:d}_chi={:d}_h={:e}_tau={:.0e}.peps".format(D, chi, h, tau))
 
 e = env.get_site_environment()
 mz = np.abs(e.contract(peps.make_double_layer(a[0], o=gates.sigmaz)) / e.contract(peps.make_double_layer(a[0])))
@@ -77,6 +77,8 @@ A = peps.make_double_layer(a[0])
 B = peps.make_double_layer(a[1])
 E += -2*e.contract(Za, Zb) / e.contract(A, B)
 f = open(basepath + "h_mz_D={:d}_chi={:d}.dat".format(D, chi), "a")
-f.write("{:.15e} {:.15e} {:.15e} {:f} {:d} {:d} {:e} {:d}\n".format(h, mz, E, time()-t0, D, chi, tau, maxiterations))
+f.write("{:.15e} {:.15e} {:.15e} {:f} {:d} {:d} {:.0e} {:d}\n".format(h, mz, E, time()-t0, D, chi, tau, maxiterations))
 f.close()
+
+print "needed {:f} seconds".format(time() - t0)
 

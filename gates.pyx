@@ -7,11 +7,17 @@ delta.flags.writeable = False
 sigmax = np.array([[0.0, 1.0], [1.0, 0.0]])
 sigmax.flags.writeable = False
 
-sigmay = np.array([[0.0, -1j], [1j, 0.0]])
+sigmay = np.array([[0.0, 1j], [-1j, 0.0]])
 sigmay.flags.writeable = False
 
 sigmaz = np.diag([-1.,1])
 sigmaz.flags.writeable = False
+
+sigmap = np.array([[0., 0], [1, 0]])
+sigmap.flags.writeable = False
+
+sigmam = np.array([[0., 1], [0, 0]])
+sigmam.flags.writeable = False
 
 """
 <j,k| sigmaz sigmaz |l,m>
@@ -28,12 +34,15 @@ def exp_sigmax(alpha):
     s = np.sinh(alpha)
     return np.array([[c,s],[s,c]])
 
-def exp_sigmaz(alpha):
+def exp_sigmay(a):
     """
-    gives the tensor-elements g_{j1,j2} of the one-particle gate
-    <j1|exp(alpha sigma_z)|j2>
+    returns A_jk = <j|exp(a*sigmay)|k>
     """
-    return np.array([[np.exp(-alpha),0],[0,np.exp(alpha)]])
+    t = np.ndarray((2,2), dtype=complex)
+    t[0,0] = t[1,1] = np.cosh(a)
+    t[0,1] = 1j*np.sinh(a)
+    t[1,0] = -1j*np.sinh(a)
+    return t
 
 def exp_sigmaz(alpha):
     """
@@ -53,7 +62,7 @@ def exp_sigmax_sigmax(alpha):
     return g
 
 def exp_sigmay_sigmay(alpha):
-    g = np.zeros((2,2,2,2), dtype=complex)
+    g = np.zeros((2,2,2,2))
     g[0,0,0,0] = g[0,1,0,1] = g[1,0,1,0] = g[1,1,1,1] = np.cosh(alpha)
     g[0,0,1,1] = g[1,1,0,0] = np.sinh(alpha)
     g[0,1,1,0] = g[1,0,0,1] = -np.sinh(alpha)
@@ -76,6 +85,18 @@ def exp_sigmaz_sigmaz(alpha):
     g = np.zeros((2,2,2,2), dtype=type(alpha))
     g[0,0,0,0] = g[1,1,1,1] = np.exp(alpha)
     g[0,1,0,1] = g[1,0,1,0] = np.exp(-alpha)
+    return g
+
+def exp_sigmap_sigmam(a):
+    g = np.zeros((2,2,2,2))
+    g[0,0,0,0] = g[0,1,0,1] = g[1,0,1,0] = g[1,1,1,1] = 1.0
+    g[1,0,0,1] = a
+    return g
+
+def exp_sigmam_sigmap(a):
+    g = np.zeros((2,2,2,2))
+    g[0,0,0,0] = g[0,1,0,1] = g[1,0,1,0] = g[1,1,1,1] = 1.0
+    g[0,1,1,0] = a
     return g
 
 def exp_sigmaz_sigmaz_mpo(alpha):
