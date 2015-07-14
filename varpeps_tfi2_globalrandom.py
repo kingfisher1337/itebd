@@ -78,6 +78,8 @@ else:
 found_new_min = False
 
 for j in xrange(num_tries):
+    print "try number {:d}".format(j)
+    sys.stdout.flush()
     a0 = np.random.rand(num_params)
     res = scipy.optimize.minimize(get_energy, a0)
     a0 = res.x
