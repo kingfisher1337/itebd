@@ -40,8 +40,8 @@ maxiterations = int(sys.argv[6])
 statefile = sys.argv[7]
 
 basepath = "output_tfi/"
-sys.stdout = open(basepath + "log_tfi_gs_2d_D={:d}_chi={:d}_h={:f}_tau={:.0e}.txt".format(D, chi, h), "a")
-sys.stderr = open(basepath + "err_tfi_gs_2d_D={:d}_chi={:d}_h={:f}_tau={:.0e}.txt".format(D, chi, h), "a")
+sys.stdout = open(basepath + "log_tfi_gs_2d_D={:d}_chi={:d}_h={:f}_tau={:.0e}.txt".format(D, chi, h, tau), "a")
+sys.stderr = open(basepath + "err_tfi_gs_2d_D={:d}_chi={:d}_h={:f}_tau={:.0e}.txt".format(D, chi, h, tau), "a")
 
 if os.path.isfile(basepath + statefile):
     a, nns = peps.load(basepath + statefile)
