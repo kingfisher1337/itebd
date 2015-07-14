@@ -47,7 +47,7 @@ if os.path.isfile(basepath + statefile):
     a, nns = peps.load(basepath + statefile)
     lut = util.build_lattice_lookup_table(nns, [4,4])
 else:
-    print "no file \"{:s}\" found! starting new calculation".format(basepath + statefile))
+    print "no file \"{:s}\" found! starting new calculation".format(basepath + statefile)
     a = [None]*2
     for j in xrange(len(a)):
         #a[j] = peps.get_state_ising(1.8)
