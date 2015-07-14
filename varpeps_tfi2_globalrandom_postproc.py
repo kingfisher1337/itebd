@@ -43,7 +43,8 @@ def get_energy(a, returnmz=False):
     
     f = test_fct(a, A)
     tester = ctm.CTMRGGenericTester(f, 1e-12)
-    env = ctm.ctmrg_1x1_hermitian(A, chi, env, tester)
+    #env = ctm.ctmrg_1x1_hermitian(A, chi, env, tester)
+    env = ctm.ctmrg_1x1_rotsymm(A, chi, env, tester)
     
     E = tester.get_value() if tester.is_converged() else 1e10
     
