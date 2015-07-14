@@ -71,6 +71,7 @@ for filename in sorted(os.listdir("output_varpeps_tfi")):
         Elist.append(E)
         mzlist.append(mz)
         
+        x.append(h)
         if y is None:
             y = [[] for j in xrange(len(params))]
         for j in xrange(len(params)):
