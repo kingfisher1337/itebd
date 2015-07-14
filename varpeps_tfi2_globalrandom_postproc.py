@@ -59,14 +59,29 @@ def get_energy(a, returnmz=False):
 f = open("output_varpeps_tfi/h_mz_E_D=2_globalrandom.dat", "w")
 Elist = []
 mzlist = []
+x = []
+y = None
 
 for filename in sorted(os.listdir("output_varpeps_tfi")):
     if filename.startswith("params_D=2_") and filename.endswith("_globalrandom.dat"):
         h = float(filter(lambda s: s.find("h=") != -1, filename[:-4].split("_"))[0].split("=")[-1])
-        x = np.loadtxt("output_varpeps_tfi/" + filename)
-        E, mz = get_energy(x, True)
+        params = np.loadtxt("output_varpeps_tfi/" + filename)
+        E, mz = get_energy(params, True)
         f.write("{:.15e} {:.15e} {:.15e}\n".format(h, mz, E))
         Elist.append(E)
         mzlist.append(mz)
+        
+        if y is None:
+            y = [[] for j in xrange(len(params))]
+        for j in xrange(len(params)):
+            y[j].append(params[j])
+f.close()
+
+f = open("output_varpeps_tfi/allparams_D=2_globalrandom.dat", "w")
+for j in xrange(len(x)):
+    f.write("{:.15e}".format(x[j]))
+    for j2 in xrange(len(y)):
+        f.write(" {:.15e}".format(y[j2][j]))
+    f.write("\n")
 f.close()
 
