@@ -40,12 +40,14 @@ maxiterations = int(sys.argv[6])
 statefile = sys.argv[7]
 
 basepath = "output_tfi/"
+sys.stdout = open(basepath + "log_tfi_gs_2d_D={:d}_chi={:d}_h={:f}_tau={:.0e}.txt".format(D, chi, h), "a")
+sys.stderr = open(basepath + "err_tfi_gs_2d_D={:d}_chi={:d}_h={:f}_tau={:.0e}.txt".format(D, chi, h), "a")
 
 if os.path.isfile(basepath + statefile):
     a, nns = peps.load(basepath + statefile)
     lut = util.build_lattice_lookup_table(nns, [4,4])
 else:
-    sys.stderr.write("no file \"{:s}\" found! starting new calculation\n".format(basepath + statefile))
+    print "no file \"{:s}\" found! starting new calculation".format(basepath + statefile))
     a = [None]*2
     for j in xrange(len(a)):
         #a[j] = peps.get_state_ising(1.8)
