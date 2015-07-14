@@ -9,17 +9,9 @@ import os
 import sys
 from time import time
 
-t0 = time()
-
 chi = 20
 p = 2
 D = 2
-h = float(sys.argv[1])
-lut = util.build_lattice_lookup_table([[0],[0]], [4,4])
-num_params = 12
-
-sys.stdout = open("output_varpeps_tfi/log_varpeps_tfi2_globalrandom_h={:f}.txt".format(h), "a")
-sys.stderr = open("output_varpeps_tfi/err_varpeps_tfi2_globalrandom_h={:f}.txt".format(h), "a")
 
 def get_symm_tensor(c):
     A = np.ndarray([2]*5)
@@ -63,35 +55,17 @@ def get_energy(a, returnmz=False):
     
     return E
 
+f = open("output_varpeps_tfi/h_mz_E_D=2_globalrandom.dat", "w")
+Elist = []
+mzlist = []
 
-num_tries = int(sys.argv[2]) if len(sys.argv) >= 3 else 100
-
-if os.path.isfile("output_varpeps_tfi/params_D=2_h={:f}_globalrandom.dat".format(h)):
-    a0_best = np.loadtxt("output_varpeps_tfi/params_D=2_h={:f}_globalrandom.dat".format(h))
-    Emin = get_energy(a0_best)
-    print "starting global ground state search with energy {:.15e}".format(Emin)
-    sys.stdout.flush()
-else:
-    Emin = 0
-    a0_best = None
-
-found_new_min = False
-
-for j in xrange(num_tries):
-    a0 = np.random.rand(num_params)
-    res = scipy.optimize.minimize(get_energy, a0)
-    a0 = res.x
-    E, mz = get_energy(a0, True)
-    if E < Emin:
-        Emin = E
-        a0_best = np.copy(a0)
-        found_new_min = True
-        print "found new minimal energy {:.15e} at try {:d} (mz = {:.15e})".format(E, j+1, mz)
-        sys.stdout.flush()
-
-if found_new_min:
-    peps.save([get_symm_tensor(a0_best)], lut, "output_varpeps_tfi/state_D=2_h={:f}_globalrandom.peps".format(h))
-    np.savetxt("output_varpeps_tfi/params_D=2_h={:f}_globalrandom.dat".format(h), a0_best)
-
-print "needed {:f} seconds".format(time() - t0)
+for filename in sorted(os.listdir("output_varpeps_tfi")):
+    if filename.startswith("params_D=2_") and filename.endswith("_globalrandom.dat"):
+        h = float(filter(lambda s: s.find("h=") != -1, filename[:-4].split("_"))[0].split("=")[-1])
+        x = np.loadtxt("output_varpeps_tfi/" + filename)
+        E, mz = get_energy(x, True)
+        f.write("{:.15e} {:.15e} {:.15e}\n".format(h, mz, E))
+        Elist.append(E)
+        mzlist.append(mz)
+f.close()
 
