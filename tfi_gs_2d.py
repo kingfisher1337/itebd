@@ -9,28 +9,6 @@ import os
 from time import time
 t0 = time()
 
-def test_fct(h, lut):
-    def test_fct_impl(a, A):
-        n = len(a)
-        X = [None] * n
-        Z = [None] * n
-        for j in xrange(n):
-            X[j] = peps.make_double_layer(a[j], o=gates.sigmax)
-            Z[j] = peps.make_double_layer(a[j], o=gates.sigmaz)
-        def test_fct_impl2(e):
-            mx = 0
-            czz = 0
-            for j in xrange(n):
-                e1 = e.get_site_environment(j)
-                mx += e1.contract(X[j]) / e1.contract(A[j])
-                e2 = e.get_bond_environment_horizontal(j)
-                czz += e2.contract(Z[j], Z[lut[j,1,0]]) / e2.contract(A[j], A[lut[j,1,0]])
-                e2 = e.get_bond_environment_vertical(j)
-                czz += e2.contract(Z[j], Z[lut[j,0,1]]) / e2.contract(A[j], A[lut[j,0,1]])
-            return (-czz - h*mx) / n
-        return test_fct_impl2
-    return test_fct_impl
-
 D = int(sys.argv[1])
 chi = int(sys.argv[2])
 h = float(sys.argv[3])
@@ -54,6 +32,44 @@ else:
         a[j] = peps.get_state_random_rotsymm(2, D)
     lut = util.build_lattice_lookup_table([[1,0],[1,0]], [4,4])
 
+def test_fct(a, A):
+    n = len(a)
+    X = map(lambda b: peps.make_double_layer(b, o=gates.sigmax), a)
+    Z = map(lambda b: peps.make_double_layer(b, o=gates.sigmaz), a)
+    AT = map(lambda B: B.transpose([1,2,3,0]), A)
+    ZT = map(lambda B: B.transpose([1,2,3,0]), Z)
+    
+    def test_fct_impl(e):
+        mx = 0
+        mz = 0
+        czz = 0
+        S = 0 # some pseudo entanglement entropy
+        for j in xrange(n):
+            e1 = e.get_site_environment(j)
+            norm = e1.contract(A[j])
+            mx += e1.contract(X[j]) / norm
+            mz += e1.contract(Z[j]) / norm
+            
+            e2 = e.get_bond_environment_horizontal(j)
+            norm = e2.contract(A[j], A[lut[j,1,0]])
+            czz += e2.contract(Z[j], Z[lut[j,1,0]]) / norm
+            
+            e2 = e.get_bond_environment_vertical(j)
+            norm = e2.contract(AT[j], AT[lut[j,0,1]])
+            czz += e2.contract(ZT[j], ZT[lut[j,0,1]]) / norm
+            
+            w1 = np.dot(e.c1[j], e.c2[lut[j,1,0]])
+            w2 = np.dot(e.c3[lut[j,1,1]], e.c4[lut[j,0,1]])
+            xi = np.linalg.svd(np.dot(w1, w2))[1]
+            xi = xi[np.nonzero(xi)]
+            S += np.dot(xi**2, np.log(xi))
+            
+        E = (-czz - h*mx) / n
+        return [mz, S, E]
+        
+    return test_fct_impl
+
+
 #g1 = gates.exp_sigmax(0.5*tau*h)
 g1 = gates.exp_sigmax(tau*h)
 g1 = [(0, g1), (1, g1)]
@@ -62,7 +78,7 @@ g2 = [(0, 0, g2), (0, 1, g2), (1, 0, g2), (1, 1, g2)]
 
 logfilename = "imtimeev_E_D={:d}_chi={:d}_h={:e}_tau={:.0e}.dat".format(D, chi, h, tau)
 logfile = open(basepath + logfilename, "a")
-a, env = tebd.itebd(a, lut, g1, g2, "random", err=tebderr, tebd_max_iterations=maxiterations, ctmrg_chi=chi, ctmrg_test_fct=test_fct(h, lut), verbose=True, logfile=logfile)
+a, env = tebd.itebd(a, lut, g1, g2, "random", err=tebderr, tebd_max_iterations=maxiterations, ctmrg_chi=chi, ctmrg_test_fct=test_fct, verbose=True, logfile=logfile, fast_full_update=False)
 logfile.close()
 
 peps.save(a, lut, basepath + "state_D={:d}_chi={:d}_h={:e}_tau={:.0e}.peps".format(D, chi, h, tau))

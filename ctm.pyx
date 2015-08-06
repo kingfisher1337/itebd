@@ -6,7 +6,6 @@ from numpy.linalg import qr
 from copy import copy
 import peps
 from time import time
-from util import PeriodicArray
 import sys
 
 class OneSiteEnvironment:
@@ -15,6 +14,20 @@ class OneSiteEnvironment:
         
     def contract(self, a):
         return dot(self.e, a.reshape(self.e.size))
+    
+    def get_reduced_density_matrix(self, a, b=None):
+        if b is None:
+            b = a.conj()
+        sa = a.shape
+        sb = b.shape
+        Da4 = np.prod(sa[1:])
+        Db4 = np.prod(sb[1:])
+        
+        rho = self.e.reshape(sa[1], sb[1], sa[2], sb[2], sa[3], sb[3], sa[4], sb[4])
+        rho = rho.transpose([0,2,4,6,1,3,5,7]).reshape(Da4, Db4)
+        rho = np.dot(a.reshape(sa[0], Da4), rho)
+        rho = np.dot(rho, b.reshape(sb[0], Db4).T)
+        return rho / np.trace(rho)
 
 class BondEnvironment:
     """
@@ -87,18 +100,101 @@ class CTMRGGenericTester:
         self.__err = err
         self.__verbose = verbose
         self.__period = 10
-        self.__vals = np.array([1e10] * self.__period)
-        self.__cnt = 0
+        self.__vals = []
+        self.__errs = []
         self.__converged = False
     def test(self, e):
         nval = self.__f(e)
-        curerr = np.max(np.abs(1 - nval / self.__vals))
-        self.__cnt += 1
-        self.__vals[self.__cnt % self.__period] = nval
-        self.__converged = curerr < self.__err
+        self.__errs.append(np.inf if len(self.__vals) < self.__period else np.abs(1 - nval / self.__vals[-1]))
+        if self.__verbose:
+            print "[CTMRGGenericTester.test] error is {:e}".format(self.__errs[-1])
+        self.__vals.append(nval)
+        self.__converged = np.array(map(lambda e: e < self.__err, self.__errs[-self.__period:])).all()
         return self.__converged
     def get_value(self):
-        return self.__vals[self.__cnt % len(self.__vals)]
+        return self.__vals[-1]
+    def get_values(self):
+        return self.__vals
+    def get_errors(self):
+        return self.__errs
+    def is_converged(self):
+        return self.__converged
+
+
+class CTMRGTester:
+    def __init__(self, f, err, abserr, checklen=10, verbose=False):
+        self.__f = f
+        self.__vals = []
+        self.__errs = []
+        self.__abserrs = []
+        self.__converged = False
+        self.__checklen = checklen
+        self.__targeterr = err
+        self.__targetabserr = abserr
+        self.__verbose = verbose
+        self.__okrellen = None
+        self.__okabslen = None
+        
+    def test(self, e):
+        nval = np.array(self.__f(e))
+        n = len(nval)
+        
+        if self.__okrellen is None:
+            self.__okrellen = [0]*n
+            self.__okabslen = [0]*n
+        
+        nerr = np.ndarray((n,))
+        nerrabs = np.ndarray((n,))
+        nconverged = True
+        for j in xrange(n):
+            if len(self.__vals) == 0:
+                nerr[j] = np.inf
+                nerrabs[j] = np.inf
+            else:
+                nerr[j] = np.abs(nval[j] / self.__vals[-1][j] - 1)
+                nerrabs[j] = np.abs(nval[j] - self.__vals[-1][j])
+            
+            if nerr[j] < self.__targeterr:
+                self.__okrellen[j] += 1
+            else:
+                self.__okrellen[j] = 0
+            
+            if nerrabs[j] < self.__targetabserr:
+                self.__okabslen[j] += 1
+            else:
+                self.__okabslen[j] = 0
+            
+            if self.__okrellen[j] < self.__checklen and self.__okabslen[j] < self.__checklen:
+                nconverged = False
+        
+        if self.__verbose:
+            print "[CTMRGTester.test] largest relative error is {:e}; largest absolute error is {:e}".format(np.max(nerr), np.max(nerrabs))
+        
+        self.__vals.append(nval)
+        self.__errs.append(nerr)
+        self.__abserrs.append(nerrabs)
+        self.__converged = nconverged
+        
+        return self.__converged
+    
+    def get_value(self, j=-1):
+        return self.__vals[j]
+    
+    def get_values(self):
+        return self.__vals
+    
+    def get_error(self, j=-1):
+        return self.__errs[j]
+    
+    def get_errors(self):
+        return self.__errs
+    
+    def get_abserror(self, j=-1):
+        return self.__abserrs[j]
+    
+    def get_abserrors(self):
+        return self.__abserrs
+    
     def is_converged(self):
         return self.__converged
 
@@ -225,7 +321,7 @@ def _renormalise_corner2(c, t, p):
     chi2 = c.shape[1]
     tmp = dot(t.reshape(chi0*D, chi1), c)
     tmp = tmp.reshape(chi0, D, chi2)
-    tmp = tmp.transpose([0,2,1])
+    tmp = tmp.swapaxes(1,2)
     tmp = tmp.reshape(chi0, chi2*D)
     tmp = dot(tmp, p.T)
     tmp /= np.max(np.abs(tmp))
@@ -316,7 +412,7 @@ def _ctmrg_step(a0, a1, a2, a3, c1, c2, c3, c4, t1, t2, t3, t4, lut, chi, dx):
     return c1_new, t4_new, c4_new
 
 
-def ctmrg(a, lut, chi, env=None, tester=None, max_iterations=100000, verbose=False):
+def ctmrg(a, lut, chi, env=None, tester=None, max_iterations=10000, verbose=False):
     t0 = time()
     
     n = len(a)
@@ -465,7 +561,7 @@ class CTMEnvironment1x1Rotsymm:
         return OneSiteEnvironment(tmp)
     
     def get_bond_environment(self, site=0):
-        e3 = (self.t.T * self.c).T * self.c
+        e3 = (self.c * self.t.T).T * self.c
         return BondEnvironment(self.t, self.t, e3, self.t, self.t, e3)
 
 def ctmrg_1x1_rotsymm(a, chi, env=None, tester=None, max_iterations=1000000, iteration_bunch=1, verbose=False):

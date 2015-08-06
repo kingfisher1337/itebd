@@ -1,6 +1,7 @@
 import numpy as np
+from numpy import dot
 from numpy import tensordot as tdot
-from util import PeriodicArray
+
 import util
 
 def get_state_pm(D=1, dtype=float):
@@ -51,19 +52,22 @@ def get_state_random_rotsymm(p, D, dtype=float):
     return a + a.transpose([0,2,3,4,1]) + a.transpose([0,3,4,1,2]) + a.transpose([0,4,1,2,3])
 
 def make_double_layer(a, b=None, o=None):
-    s = a.shape    
+    n = len(a.shape) - 1
     
     if b is None:
         b = a.conj()
-    elif b.shape != s:
-        raise ValueError("shape of b mismatches shape of a!")
     
-    if len(s) == 5:
+    if n == 4:
+        p, D1, D2, D3, D4 = a.shape
+        _, D5, D6, D7, D8 = b.shape
+        a = a.reshape(p, D1*D2*D3*D4)
         if o is not None:
-            a = np.einsum(a, [5,1,2,3,4], o, [5,0])
-        return np.einsum(a, [8,0,2,4,6], b, [8,1,3,5,7]).reshape(np.array(s[1:])**2)
-    else:
-        raise NotImplementedError("not yet implemented")
+            a = dot(o, a)
+        x = dot(a.T, b.reshape(p, D5*D6*D7*D8)).reshape(D1, D2, D3, D4, D5, D6, D7, D8)
+        return x.transpose([0,4,1,5,2,6,3,7]).reshape(D1*D5, D2*D6, D3*D7, D4*D8)
+    
+    raise NotImplementedError("Not yet implemented for non-square PEPS!")
+
 
 
 def build_transfer_matrix_pbc(a, m, b=None):
@@ -131,6 +135,18 @@ def contract_finite_lattice_pbc(a, m, n, b=None):
     tmb = build_transfer_matrix_pbc(a, m, b)
     tmp = np.linalg.matrix_power(tma, n-1)
     return tdot(tmp, tmb, [[0,1],[1,0]]) / tdot(tmp, tma, [[0,1],[1,0]])
+
+def overlap_finite_lattice_pbc(a, b, m, n):
+    A = make_double_layer(a)
+    B = make_double_layer(b)
+    C = make_double_layer(b, a)
+    tmA = build_transfer_matrix_pbc(A, m)
+    tmB = build_transfer_matrix_pbc(B, m)
+    tmC = build_transfer_matrix_pbc(C, m)
+    psipsi = np.trace(np.linalg.matrix_power(tmA, n))
+    phiphi = np.trace(np.linalg.matrix_power(tmB, n))
+    psiphi = np.trace(np.linalg.matrix_power(tmC, n))
+    return psiphi / np.sqrt(psipsi * phiphi)
 
 def save(a, lut, filename):
     f = open(filename, "w")
