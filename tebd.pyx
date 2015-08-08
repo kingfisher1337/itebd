@@ -159,24 +159,6 @@ def itebd(
         tester = ctm.CTMRGTester(ctmrg_test_fct(a, A), ctmrg_relerr, ctmrg_abserr, verbose=ctmrg_tester_verbose)
         env = ctm.ctmrg(A, lut, ctmrg_chi, env, tester, ctmrg_max_iterations, ctmrg_verbose)
         
-        """
-        if not tester.is_converged():
-            import matplotlib.pyplot as plt
-            plt.subplot(311)
-            plt.plot(tester.get_values())
-            plt.grid(True)
-            plt.subplot(312)
-            plt.plot(tester.get_errors())
-            plt.grid(True)
-            plt.yscale("log")
-            plt.subplot(313)
-            plt.plot(tester.get_abserrors())
-            plt.grid(True)
-            plt.yscale("log")
-            plt.savefig("output_tfi/ctmrg_notconverged_it{:d}.png".format(it))
-            plt.close()
-        """
-        
         nval = tester.get_value()[-1]
         nerr = np.inf if len(vals) == 0 else np.abs(1 - nval / vals[-1])
         vals.append(nval)
@@ -184,7 +166,10 @@ def itebd(
         valerr = np.max(errs[-10:])
         
         if logfile is not None:
-            logfile.write("{:.15e} {:.15e} {:f}\n".format(nval, valerr, time()-t0))
+            logfile.write("{:.15e} {:.15e} {:f}".format(nval, valerr, time()-t0))
+            for x in tester.get_value()[:-1]:
+                logfile.write(" {:.15e}".format(x))
+            logfile.write("\n")
             logfile.flush()
             sys.stdout.flush()
         if verbose:
@@ -211,24 +196,6 @@ def itebd(
                     A[k] = peps.make_double_layer(a[k])
                 tester = ctm.CTMRGTester(ctmrg_test_fct(a, A), ctmrg_relerr, ctmrg_abserr, verbose=ctmrg_tester_verbose)
                 env = ctm.ctmrg(A, lut, ctmrg_chi, env, tester, ctmrg_max_iterations, verbose)
-                
-                """
-                if not tester.is_converged():
-                    import matplotlib.pyplot as plt
-                    plt.subplot(311)
-                    plt.plot(tester.get_values())
-                    plt.grid(True)
-                    plt.subplot(312)
-                    plt.plot(tester.get_errors())
-                    plt.grid(True)
-                    plt.yscale("log")
-                    plt.subplot(313)
-                    plt.plot(tester.get_abserrors())
-                    plt.grid(True)
-                    plt.yscale("log")
-                    plt.savefig("output_tfi/ctmrg_notconverged_it{:d}_g2_site{:d}_{:s}.png".format(it, j, "h" if orientation == 0 else "v"))
-                    plt.close()
-                """
                 
                 if orientation == 0:
                     a[j], a[lut[j,1,0]] = _itebd_step(a, lut, g, j, orientation, env, ctmrg_chi, verbose, 1e-14, 1000)

@@ -65,6 +65,7 @@ def test_fct(a, A):
             S += np.dot(xi**2, np.log(xi))
             
         E = (-czz - h*mx) / n
+        mx /= n
         return [mz, S, E]
         
     return test_fct_impl
