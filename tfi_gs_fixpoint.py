@@ -62,8 +62,11 @@ def test_fct(a, A):
         
     return test_fct_impl
 
-g1 = gates.exp_sigmax(0.5*tau*h)
-#g1 = gates.exp_sigmax(tau*h)
+trotter_second_order = True
+if trotter_second_order:
+    g1 = gates.exp_sigmax(0.5*tau*h)
+else:
+    g1 = gates.exp_sigmax(tau*h)
 g1 = [(0, g1), (1, g1)]
 g2 = gates.exp_sigmaz_sigmaz(tau)
 g2 = [(0, 0, g2), (0, 1, g2), (1, 0, g2), (1, 1, g2)]
@@ -74,9 +77,9 @@ a = peps.load(basepath_varpeps + statefile)[0][0]
 a = [a, a]
 lut = util.build_lattice_lookup_table([[1,0],[1,0]], [4,4])
 
-logfilename = "imtimeev_E_D={:d}_chi={:d}_h={:e}_tau={:.0e}.dat".format(D, chi, h, tau)
+logfilename = "imtimeev{:s}_E_D={:d}_chi={:d}_h={:e}_tau={:.0e}.dat".format("_2nd" if trotter_second_order else "", D, chi, h, tau)
 logfile = open(basepath + logfilename, "a")
-a, env = tebd.itebd(a, lut, g1, g2, "random", err=tebderr, tebd_max_iterations=maxiterations, ctmrg_chi=chi, ctmrg_test_fct=test_fct, verbose=True, logfile=logfile, fast_full_update=fast_full_update, apply_g1_twice=True)
+a, env = tebd.itebd(a, lut, g1, g2, "random", err=tebderr, tebd_max_iterations=maxiterations, ctmrg_chi=chi, ctmrg_test_fct=test_fct, verbose=True, logfile=logfile, fast_full_update=fast_full_update, apply_g1_twice=trotter_second_order)
 logfile.close()
 
 peps.save(a, lut, basepath + "state_D={:d}_chi={:d}_h={:e}_tau={:.0e}.peps".format(D, chi, h, tau))
