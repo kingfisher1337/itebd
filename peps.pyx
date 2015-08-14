@@ -148,6 +148,12 @@ def overlap_finite_lattice_pbc(a, b, m, n):
     psiphi = np.trace(np.linalg.matrix_power(tmC, n))
     return psiphi / np.sqrt(psipsi * phiphi)
 
+def increase_bond_dimension(a, D):
+    D0 = a[0].shape[1]
+    U = np.identity(D)[:D0]
+    return map(lambda a: tdot(tdot(tdot(tdot(a, U, [1,0]), U, [1,0]), U, [1,0]), U, [1,0]), a)
+        
+
 def save(a, lut, filename):
     f = open(filename, "w")
     

@@ -17,6 +17,7 @@ tebderr = float(sys.argv[5])
 maxiterations = int(sys.argv[6])
 statefile = sys.argv[7]
 fast_full_update = "-ffu" in sys.argv
+trotter_second_order = "-trotter2" in sys.argv
 
 basepath = "output_tfi_fixpoint/"
 basepath_varpeps = "output_varpeps_tfi/"
@@ -62,7 +63,6 @@ def test_fct(a, A):
         
     return test_fct_impl
 
-trotter_second_order = True
 if trotter_second_order:
     g1 = gates.exp_sigmax(0.5*tau*h)
 else:

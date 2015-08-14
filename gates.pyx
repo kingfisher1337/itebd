@@ -19,11 +19,33 @@ sigmap.flags.writeable = False
 sigmam = np.array([[0., 1], [0, 0]])
 sigmam.flags.writeable = False
 
+sigmaxsigmax = np.outer(sigmax, sigmax).reshape(2, 2, 2, 2).swapaxes(1, 2)
+sigmaysigmay = np.outer(sigmay, sigmay).reshape(2, 2, 2, 2).swapaxes(1, 2)
+
 """
 <j,k| sigmaz sigmaz |l,m>
 """
-sigmazsigmaz = np.fromfunction(lambda j,k,l,m: delta[j,l]*delta[k,m]*(-1)**(j+k), (2,2,2,2), dtype=int)
+#sigmazsigmaz = np.fromfunction(lambda j,k,l,m: delta[j,l]*delta[k,m]*(-1)**(j+k), (2,2,2,2), dtype=int)
+sigmazsigmaz = np.outer(sigmaz, sigmaz).reshape(2, 2, 2, 2).swapaxes(1, 2)
 sigmazsigmaz.flags.writeable = False
+
+
+sigmapsigmam = np.outer(sigmap, sigmam).reshape(2, 2, 2, 2).swapaxes(1, 2)
+sigmapsigmam.flags.writeable = False
+
+sigmamsigmap = np.outer(sigmam, sigmap).reshape(2, 2, 2, 2).swapaxes(1, 2)
+sigmamsigmap.flags.writeable = False
+
+def exp_one_body_gate(g):
+    return expm(g)
+
+def exp_two_body_gate(g):
+    p1, p2 = g.shape[:2]
+    g = g.reshape(p1*p2, p1*p2)
+    g = expm(g)
+    return g.reshape(p1, p2, p1, p2)
+
+
 
 def exp_sigmax(alpha):
     """
@@ -143,4 +165,6 @@ def imtime_evolution_from_pair_hamiltonian_mpo(h1, h2, tau):
 def imtime_evolution_from_pair_hamiltonian_pepo(h1, h2, tau):
     g = imtime_evolution_from_pair_hamiltonian_mpo(h1, h2, tau)
     return np.einsum(g, [0,2,6,4], g, [6,3,1,5])
+
+
 

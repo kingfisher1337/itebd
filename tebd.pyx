@@ -111,19 +111,6 @@ def _itebd_step(a, lut, g, j, orientation, env, chi, verbose, cost_err, cost_max
         
     if not converged:
         sys.stderr.write("[_itebd_step] warning: cost function did not converge! cost relerr is {:e}\n".format(nerr))
-    #    sys.stderr.write("[_itebd_step] warning: cost function did not converge! cost rel/abs err is {:e}/{:e}\n".format(err[-1], abserr[-1]))
-    
-    #import matplotlib.pyplot as plt
-    #plt.title("tebd full update")
-    #plt.subplot(311)
-    #plt.plot(cost)
-    #plt.subplot(312)
-    #plt.plot(err)
-    #plt.yscale("log")
-    #plt.subplot(313)
-    #plt.plot(abserr)
-    #plt.yscale("log")
-    #plt.show()
     
     if orientation == 0:
         return tdot(a3, X, [0,3]).swapaxes(1,2), tdot(b3, Y, [0,3]).transpose([0,2,3,4,1])
@@ -223,4 +210,32 @@ def itebd(
         print "[itebd] needed {:f} seconds".format(time()-t0)
 
     return a, env
+
+
+from scipy.optimize import minimize
+
+env = "random"
+def polish(a, lut, f, chi):
+    shape = a[0].shape
+    size = a[0].size
+    n = len(a)
     
+    def peps_to_vec(b):
+        return np.concatenate(map(lambda c: c.reshape(size), b))
+
+    def vec_to_peps(x):
+        return map(lambda c: c.reshape(shape), np.split(x, n))
+        
+    def cost_fct(x):
+        global env
+        b = vec_to_peps(x)
+        B = map(lambda y: peps.make_double_layer(y), b)
+        tester = ctm.CTMRGTester(f(b, B), 1e-12, 1e-15)
+        env = ctm.ctmrg(B, lut, chi, env, tester, 1000)
+        print tester.get_value()[-1]
+        return tester.get_value()[-1]
+    
+    res = minimize(cost_fct, peps_to_vec(a), options={"disp":True})
+    print "[polish] minimize message:", res.message
+    return res.x
+
