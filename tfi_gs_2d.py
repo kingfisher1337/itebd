@@ -16,6 +16,8 @@ tau = float(sys.argv[4])
 tebderr = float(sys.argv[5])
 maxiterations = int(sys.argv[6])
 statefile = sys.argv[7]
+fast_full_update = "-ffu" in sys.argv
+trotter_second_order = "-trotter2" in sys.argv
 
 basepath = "output_tfi/"
 sys.stdout = open(basepath + "log_tfi_gs_2d_D={:d}_chi={:d}_h={:f}_tau={:.0e}.txt".format(D, chi, h, tau), "a")
@@ -24,6 +26,8 @@ sys.stderr = open(basepath + "err_tfi_gs_2d_D={:d}_chi={:d}_h={:f}_tau={:.0e}.tx
 if os.path.isfile(basepath + statefile):
     a, nns = peps.load(basepath + statefile)
     lut = util.build_lattice_lookup_table(nns, [4,4])
+    if a[0].shape[1] < D:
+        a = peps.increase_bond_dimension(a, D)
 else:
     print "no file \"{:s}\" found! starting new calculation".format(basepath + statefile)
     a = [None]*2
@@ -71,15 +75,17 @@ def test_fct(a, A):
     return test_fct_impl
 
 
-#g1 = gates.exp_sigmax(0.5*tau*h)
-g1 = gates.exp_sigmax(tau*h)
+if trotter_second_order:
+    g1 = gates.exp_sigmax(0.5*tau*h)
+else:
+    g1 = gates.exp_sigmax(tau*h)
 g1 = [(0, g1), (1, g1)]
 g2 = gates.exp_sigmaz_sigmaz(tau)
 g2 = [(0, 0, g2), (0, 1, g2), (1, 0, g2), (1, 1, g2)]
 
 logfilename = "imtimeev_E_D={:d}_chi={:d}_h={:e}_tau={:.0e}.dat".format(D, chi, h, tau)
 logfile = open(basepath + logfilename, "a")
-a, env = tebd.itebd(a, lut, g1, g2, "random", err=tebderr, tebd_max_iterations=maxiterations, ctmrg_chi=chi, ctmrg_test_fct=test_fct, verbose=True, logfile=logfile, fast_full_update=False)
+a, env = tebd.itebd(a, lut, g1, g2, "random", err=tebderr, tebd_max_iterations=maxiterations, ctmrg_chi=chi, ctmrg_test_fct=test_fct, verbose=True, logfile=logfile, fast_full_update=fast_full_update, apply_g1_twice=trotter_second_order)
 logfile.close()
 
 peps.save(a, lut, basepath + "state_D={:d}_chi={:d}_h={:e}_tau={:.0e}.peps".format(D, chi, h, tau))
