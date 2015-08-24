@@ -18,16 +18,28 @@ maxiterations = int(sys.argv[6])
 statefile = sys.argv[7]
 fast_full_update = "-ffu" in sys.argv
 trotter_second_order = "-trotter2" in sys.argv
+output_to_terminal = "-writehere" in sys.argv
 
 basepath = "output_tfi/"
-sys.stdout = open(basepath + "log_tfi_gs_2d_D={:d}_chi={:d}_h={:f}_tau={:.0e}.txt".format(D, chi, h, tau), "a")
-sys.stderr = open(basepath + "err_tfi_gs_2d_D={:d}_chi={:d}_h={:f}_tau={:.0e}.txt".format(D, chi, h, tau), "a")
+
+if not output_to_terminal:
+    sys.stdout = open(basepath + "log_tfi_gs_2d_D={:d}_chi={:d}_h={:f}_tau={:.0e}.txt".format(D, chi, h, tau), "a")
+    sys.stderr = open(basepath + "err_tfi_gs_2d_D={:d}_chi={:d}_h={:f}_tau={:.0e}.txt".format(D, chi, h, tau), "a")
 
 if os.path.isfile(basepath + statefile):
     a, nns = peps.load(basepath + statefile)
     lut = util.build_lattice_lookup_table(nns, [4,4])
     if a[0].shape[1] < D:
         a = peps.increase_bond_dimension(a, D)
+    _D = int(filter(lambda s: s.find("D=") != -1, statefile[:-5].split("_"))[0].split("=")[-1])
+    _chi = int(filter(lambda s: s.find("chi=") != -1, statefile[:-5].split("_"))[0].split("=")[-1])
+    _h = float(filter(lambda s: s.find("h=") != -1, statefile[:-5].split("_"))[0].split("=")[-1])
+    _trotter2 = "_trotter2" in statefile
+    if _D != D or _chi != chi or _h != h or _trotter2 != trotter_second_order:
+        t0 = 0
+    else:
+        t0 = float(filter(lambda s: s.find("t=") != -1, statefile[:-5].split("_"))[0].split("=")[-1])
+    
 else:
     print "no file \"{:s}\" found! starting new calculation".format(basepath + statefile)
     a = [None]*2
@@ -35,6 +47,7 @@ else:
         #a[j] = peps.get_state_ising(1.8)
         a[j] = peps.get_state_random_rotsymm(2, D)
     lut = util.build_lattice_lookup_table([[1,0],[1,0]], [4,4])
+    t0 = 0
 
 def test_fct(a, A):
     n = len(a)
@@ -74,7 +87,25 @@ def test_fct(a, A):
         
     return test_fct_impl
 
+def get_gates(dt):
+    if trotter_second_order:
+        g1 = gates.exp_sigmax(0.5*tau*h)
+        g1pre = g1post = [(0, g1), (1, g1)]
+    else:
+        g1 = gates.exp_sigmax(tau*h)
+        g1pre = [(0, g1), (1, g1)]
+        g1post = []
+    g2 = gates.exp_sigmaz_sigmaz(tau)
+    g2 = [(0, 0, g2), (0, 1, g2), (1, 0, g2), (1, 1, g2)]
+    return g1pre, g2, g1post
 
+env_contractor = tebd.CTMRGEnvContractor(lut, chi, test_fct, 1e-12, 1e-15, ctmrg_verbose=True)
+simulation_name = "D={:d}_chi={:d}_h={:f}_tau={:.6f}{:s}".format(D, chi, h, tau, "_trotter2" if trotter_second_order else "")
+backup_interval = 100
+tebd.itebd_v2(a, lut, t0, tau, maxiterations*tau, get_gates, env_contractor, basepath, simulation_name, backup_interval)
+
+
+"""
 if trotter_second_order:
     g1 = gates.exp_sigmax(0.5*tau*h)
 else:
@@ -104,4 +135,4 @@ f.write("{:.15e} {:.15e} {:.15e} {:f} {:d} {:d} {:.0e} {:d}\n".format(h, mz, E, 
 f.close()
 
 print "needed {:f} seconds".format(time() - t0)
-
+"""

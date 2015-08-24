@@ -198,7 +198,6 @@ class CTMRGTester:
     def is_converged(self):
         return self.__converged
 
-
 class CTMEnvironment:
     def __init__(self, lut, c1, c2, c3, c4, t1, t2, t3, t4):
         self.lut = lut
@@ -286,6 +285,14 @@ def _contract_big_corner(c, t1, t4, a):
     tmp = tmp.reshape(chi0, D3, D0, chi3).transpose([0,3,1,2]).reshape(chi0*chi3, D3*D0)
     a = a.transpose([3,0,1,2]).reshape(D3*D0, D1*D2)
     return dot(tmp, a).reshape(chi0, chi3, D1, D2).transpose([0,3,1,2]).reshape(chi0*D2, chi3*D1)
+    
+    # equivalent but non-optimised version:
+    #tmp = tdot(c, t1, [1,0])
+    #tmp = tdot(t4, tmp, [2,0])
+    #tmp = tdot(tmp, a, [[2,1],[0,3]])
+    #tmp = tmp.transpose([0,3,1,2])
+    #s = tmp.shape
+    #return tmp.reshape(s[0]*s[1], s[2]*s[3])
 
 def _renormalise_corner1(c, t, p):
     """
@@ -362,6 +369,17 @@ def _renormalise_row_transfer_tensor(t, a, p1, p2):
     return tmp
 
 def _build_projectors(chi, c1, c2, c3, c4, t1, t2, t3, t4, t5, t6, t7, t8, a1, a2, a3, a4):
+    """
+    builds projectors for the network::
+    
+        c1---t1---t2---c2
+        |    |    |     |
+        t8---a1---a2---t3
+        |    |    |     |
+        t7---a3---a4---t4
+        |    |    |     |
+        c4---t6---t5---c3
+    """
     tmp = _contract_big_corner(c1, t1, t8, a1)
     tmp2 = _contract_big_corner(c2, t3, t2, a2)
     r1 = qr(dot(tmp, tmp2).T)[1]
@@ -383,21 +401,24 @@ def _ctmrg_step(a0, a1, a2, a3, c1, c2, c3, c4, t1, t2, t3, t4, lut, chi, dx):
     p1 = [None] * n
     p2 = [None] * n
     
-    dx1 = dx[0]
-    dx2 = dx[1]
-    dy1 = dx2
-    dy2 = -dx1
-    
     for j in xrange(n):
         L = lut[j]
-        p1[L[dy1,dy2]], p2[L[dy1,dy2]] = _build_projectors(chi,
-            c1[j], c2[L[-3*dx1,-3*dx2]], c3[L[-3*dx1+3*dy1,-3*dx2+3*dy2]], c4[L[3*dy1,3*dy2]],
-            t1[L[-dx1,-dx2]], t1[L[-2*dx1,-2*dx2]], 
-            t2[L[-3*dx1+dy1,-3*dx2+dy2]], t2[L[-3*dx1+2*dy1,-3*dx2+2*dy2]],
-            t3[L[-2*dx1+3*dy1,-2*dx2+3*dy2]], t3[L[-dx1+3*dy1,-dx2+3*dy2]],
-            t4[L[2*dy1,2*dy2]], t4[L[dy1,dy2]],
-            a0[L[-dx1+dy1,-dx2+dy2]], a1[L[-2*dx1+dy1,-2*dx2+dy2]],
-            a3[L[dx1+2*dy1,dx2+2*dy2]], a2[L[-2*dx1+2*dy1,-2*dx2+2*dy2]])
+        x, y = dx
+        s00, s10, s20, s30 = j,            L[-x,        -y], L[-2*x,        -2*y], L[-3*x,        -3*y]
+        s01, s11, s21, s31 = L[  -y,   x], L[-x-y,     x-y], L[-2*x-y,     x-2*y], L[-3*x-y,     x-3*y]
+        s02, s12, s22, s32 = L[-2*y, 2*x], L[-x-2*y, 2*x-y], L[-2*x-2*y, 2*x-2*y], L[-3*x-2*y, 2*x-3*y]
+        s03, s13, s23, s33 = L[-3*y, 3*x], L[-x-3*y, 3*x-y], L[-2*x-3*y, 3*x-2*y], L[-3*x-3*y, 3*x-3*y]
+        
+        p1[s01], p2[s01] = _build_projectors(chi,
+            c1[s00], c2[s30], c3[s33], c4[s03],
+            t1[s10], t1[s20], t2[s31], t2[s32],
+            t3[s23], t3[s13], t4[s02], t4[s01],
+            a0[s11], a1[s21], a3[s12], a2[s22])
+        
+        # note: p1[s01] is the projector to renormalise c4[s02] (to get c4[s12])
+        #       p2[s01] is the projector to renormalise c1[s01] (to get c1[s11])
+        # note: p1[s01] is of shape chi x (D*chi)
+        #       p2[s01] is of shape (D*chi) x chi
         
     c1_new = [None] * n
     c4_new = [None] * n
@@ -405,10 +426,14 @@ def _ctmrg_step(a0, a1, a2, a3, c1, c2, c3, c4, t1, t2, t3, t4, lut, chi, dx):
     
     for j in xrange(n):
         L = lut[j]
-        c1_new[L[-dx1,-dx2]] = _renormalise_corner1(c1[j], t1[L[-dx1,-dx2]], p2[j])
-        c4_new[L[-dx1,-dx2]] = _renormalise_corner2(c4[j], t3[L[-dx1,-dx2]], p1[L[-dy1,-dy2]])
-        t4_new[L[-dx1,-dx2]] = _renormalise_row_transfer_tensor(t4[j], a0[L[-dx1,-dx2]], p1[L[-dy1,-dy2]], p2[j])
-    
+        x, y = dx
+        s00 = L[y, -x]
+        s01, s11 = j, L[-x, -y]
+        
+        c1_new[s11] = _renormalise_corner1(c1[s01], t1[s11], p2[s01])
+        c4_new[s11] = _renormalise_corner2(c4[s01], t3[s11], p1[s00])
+        t4_new[s11] = _renormalise_row_transfer_tensor(t4[s01], a0[s11], p1[s00], p2[s01])
+        
     return c1_new, t4_new, c4_new
 
 
@@ -417,13 +442,20 @@ def ctmrg(a, lut, chi, env=None, tester=None, max_iterations=10000, verbose=Fals
     
     n = len(a)
     a0 = a
-    a1, a2, a3 = [None]*n, [None]*n, [None]*n
-    for j in xrange(n):
-        a1[j] = a[j].transpose([1,2,3,0])
-        a2[j] = a[j].transpose([2,3,0,1])
-        a3[j] = a[j].transpose([3,0,1,2])
+    a1 = map(lambda a: a.transpose([1,2,3,0]), a0)
+    a2 = map(lambda a: a.transpose([2,3,0,1]), a0)
+    a3 = map(lambda a: a.transpose([3,0,1,2]), a0)
+    
+    # a1, a2 and a3 are the rotated versions of a0
+    #       j          m          l          k
+    #       |          |          |          |
+    #    m--a0--k = l--a1--j = k--a2--m = j--a3--l
+    #       |          |          |          |
+    #       l          k          j          m
 
     if env == "random":
+        if verbose:
+            print "[ctmrg] initialising with random tensors"
         env = CTMEnvironment(lut, [None]*n, [None]*n, [None]*n, [None]*n, [None]*n, [None]*n, [None]*n, [None]*n)
         for j in xrange(n):
             env.c1[j] = np.random.rand(chi, chi)
@@ -434,7 +466,9 @@ def ctmrg(a, lut, chi, env=None, tester=None, max_iterations=10000, verbose=Fals
             env.t2[j] = np.random.rand(chi, a0[lut[j,-1,0]].shape[1], chi)
             env.t3[j] = np.random.rand(chi, a0[lut[j,0,-1]].shape[2], chi)
             env.t4[j] = np.random.rand(chi, a0[lut[j,+1,0]].shape[3], chi)
-    elif type(env) != CTMEnvironment:
+    elif env == "default" or env is None:
+        if verbose:
+            print "[ctmrg] initialising with single site tensors"
         env = CTMEnvironment(lut, [None]*n, [None]*n, [None]*n, [None]*n, [None]*n, [None]*n, [None]*n, [None]*n)
         D = a0[0].shape[0]
         D2 = D / int(np.sqrt(D))
@@ -448,6 +482,9 @@ def ctmrg(a, lut, chi, env=None, tester=None, max_iterations=10000, verbose=Fals
             env.c2[j] = np.einsum(env.t1[j], [0,1,2], delta, [2])
             env.c3[j] = np.einsum(env.t3[j], [2,0,1], delta, [2])
             env.c4[j] = np.einsum(env.t3[j], [0,1,2], delta, [2])
+    else:
+        if verbose:
+            print "[ctmrg] proceed with given CTMEnvironment"
     
     converged = False
     it = -1

@@ -23,7 +23,7 @@ def _build_fu_env(be, X, Y):
     tmp2 = tdot(tmp2, be.e4.reshape(be.chi34, D4, D4, be.chi45), [[1,2,4],[0,1,2]])
     return tdot(tmp, tmp2, [[0,3],[3,0]])
 
-def _itebd_step(a, lut, g, j, orientation, env, chi, verbose, cost_err, cost_max_iterations):
+def _itebd_step(a, lut, g, j, orientation, env, cost_err, cost_max_iterations):
     p, D = a[0].shape[:2]
     
     # apply gate to bond
@@ -118,6 +118,96 @@ def _itebd_step(a, lut, g, j, orientation, env, chi, verbose, cost_err, cost_max
         return tdot(a3, X, [0,3]).transpose([0,4,2,1,3]), tdot(b3, Y, [0,3])
         
 
+
+def _apply_one_body_gate(a, g):
+    s = a.shape
+    a = dot(g, a.reshape(s[0], s[1]*s[2]*s[3]*s[4])).reshape(s)
+    return a / np.max(np.abs(a))
+
+class CTMRGEnvContractor:
+    def __init__(self, lut, chi, test_fct, relerr, abserr, max_iterations_per_update=1000, ctmrg_verbose=False, tester_verbose=False, tester_checklen=10):
+        self.lut = lut
+        self.chi = chi
+        self.e = "random"
+        self.test_fct = test_fct
+        self.relerr = relerr
+        self.abserr = abserr
+        self.max_iterations_per_update = max_iterations_per_update
+        self.ctmrg_verbose = ctmrg_verbose
+        self.tester_verbose = tester_verbose
+        self.tester_checklen = tester_checklen
+        self.test_values = None
+    
+    def update(self, a):
+        A = map(peps.make_double_layer, a)
+        tester = ctm.CTMRGTester(self.test_fct(a, A), self.relerr, self.abserr, self.tester_checklen, self.tester_verbose)
+        self.e = ctm.ctmrg(A, self.lut, self.chi, self.e, tester, self.max_iterations_per_update, verbose=self.ctmrg_verbose)
+        self.test_values = tester.get_value()
+    
+    def get_environment(self):
+        return self.e
+    
+    def get_test_values(self):
+        return self.test_values
+    
+
+def itebd_v2(a, lut, t0, dt, tmax, gate_callback, env_contractor, log_dir, simulation_name, backup_interval):
+    
+    walltime0 = time()
+    max_iterations = int(tmax / dt)
+    g1pre, g2, g1post = gate_callback(dt)
+    
+    if not log_dir.endswith("/"):
+        log_dir += "/"
+    f = open(log_dir + simulation_name + "_itebd.dat", "a")
+    
+    env_contractor.update(a)
+    
+    walltime = time() - walltime0
+    f.write("{:.15e} {:f}".format(t0, walltime))
+    for x in env_contractor.get_test_values():
+        f.write(" {:.15e}".format(x))
+    f.write("\n")
+    f.flush()
+    
+    for it in xrange(max_iterations):
+    
+        for (j, g) in g1pre:
+            a[j] = _apply_one_body_gate(a[j], g)
+        
+        for (j, orientation, g) in g2:
+            env_contractor.update(a)
+            
+            if orientation == 0:
+                a[j], a[lut[j,1,0]] = _itebd_step(a, lut, g, j, orientation, env_contractor.get_environment(), 1e-14, 1000)
+            else:
+                a[j], a[lut[j,0,1]] = _itebd_step(a, lut, g, j, orientation, env_contractor.get_environment(), 1e-14, 1000)
+        
+        for (j, g) in g1post:
+            a[j] = _apply_one_body_gate(a[j], g)
+    
+        env_contractor.update(a)
+        
+        t = t0 + (it+1)*dt
+        walltime = time() - walltime0
+        
+        f.write("{:.15e} {:f}".format(t, walltime))
+        for x in env_contractor.get_test_values():
+            f.write(" {:.15e}".format(x))
+        f.write("\n")
+        f.flush()
+        
+        if (it+1) % backup_interval == 0:
+            peps.save(a, lut, log_dir + simulation_name + "_state_t={0:011.6f}.peps".format(t))
+            print "saved peps at t={0:011.6f}".format(t)
+
+    f.close()
+    
+    if max_iterations % backup_interval != 0:
+        peps.save(a, lut, log_dir + simulation_name + "_state_t={0:011.6f}.peps".format(t0 + tmax))
+        print "saved peps at t={0:011.6f}".format(tmax)
+
+    return a
 
 def itebd(
     a, lut,
