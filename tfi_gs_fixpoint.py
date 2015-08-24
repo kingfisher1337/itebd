@@ -13,17 +13,18 @@ D = int(sys.argv[1])
 chi = int(sys.argv[2])
 h = float(sys.argv[3])
 tau = float(sys.argv[4])
-tebderr = float(sys.argv[5])
-maxiterations = int(sys.argv[6])
-statefile = sys.argv[7]
+maxiterations = int(sys.argv[5])
+statefile = sys.argv[6]
 fast_full_update = "-ffu" in sys.argv
 trotter_second_order = "-trotter2" in sys.argv
+output_to_terminal = "-writehere" in sys.argv
 
 basepath = "output_tfi_fixpoint/"
 basepath_varpeps = "output_varpeps_tfi/"
 
-sys.stdout = open(basepath + "log_tfi_gs_2d_D={:d}_chi={:d}_h={:f}_tau={:.0e}.txt".format(D, chi, h, tau), "a")
-sys.stderr = open(basepath + "err_tfi_gs_2d_D={:d}_chi={:d}_h={:f}_tau={:.0e}.txt".format(D, chi, h, tau), "a")
+if not output_to_terminal:
+    sys.stdout = open(basepath + "log_tfi_gs_2d_D={:d}_chi={:d}_h={:f}_tau={:.0e}.txt".format(D, chi, h, tau), "a")
+    sys.stderr = open(basepath + "err_tfi_gs_2d_D={:d}_chi={:d}_h={:f}_tau={:.0e}.txt".format(D, chi, h, tau), "a")
 
 def test_fct(a, A):
     n = len(a)
@@ -63,6 +64,29 @@ def test_fct(a, A):
         
     return test_fct_impl
 
+def get_gates(dt):
+    if trotter_second_order:
+        g1 = gates.exp_sigmax(0.5*tau*h)
+        g1pre = g1post = [(0, g1), (1, g1)]
+    else:
+        g1 = gates.exp_sigmax(tau*h)
+        g1pre = [(0, g1), (1, g1)]
+        g1post = []
+    g2 = gates.exp_sigmaz_sigmaz(tau)
+    g2 = [(0, 0, g2), (0, 1, g2), (1, 0, g2), (1, 1, g2)]
+    return g1pre, g2, g1post
+
+a = peps.load(basepath_varpeps + statefile)[0][0]
+a = [a, a]
+lut = util.build_lattice_lookup_table([[1,0],[1,0]], [4,4])
+
+env_contractor = tebd.CTMRGEnvContractor(lut, chi, test_fct, 1e-12, 1e-15, ctmrg_verbose=True)
+simulation_name = "D={:d}_chi={:d}_h={:f}_tau={:.6f}{:s}".format(D, chi, h, tau, "_trotter2" if trotter_second_order else "")
+backup_interval = 100
+tebd.itebd_v2(a, lut, t0, tau, maxiterations*tau, get_gates, env_contractor, basepath, simulation_name, backup_interval)
+
+
+"""
 if trotter_second_order:
     g1 = gates.exp_sigmax(0.5*tau*h)
 else:
@@ -83,5 +107,5 @@ a, env = tebd.itebd(a, lut, g1, g2, "random", err=tebderr, tebd_max_iterations=m
 logfile.close()
 
 peps.save(a, lut, basepath + "state_D={:d}_chi={:d}_h={:e}_tau={:.0e}.peps".format(D, chi, h, tau))
-
+"""
 

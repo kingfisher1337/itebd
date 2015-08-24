@@ -13,9 +13,8 @@ D = int(sys.argv[1])
 chi = int(sys.argv[2])
 h = float(sys.argv[3])
 tau = float(sys.argv[4])
-tebderr = float(sys.argv[5])
-maxiterations = int(sys.argv[6])
-statefile = sys.argv[7]
+maxiterations = int(sys.argv[5])
+statefile = sys.argv[6]
 fast_full_update = "-ffu" in sys.argv
 trotter_second_order = "-trotter2" in sys.argv
 output_to_terminal = "-writehere" in sys.argv
@@ -104,35 +103,3 @@ simulation_name = "D={:d}_chi={:d}_h={:f}_tau={:.6f}{:s}".format(D, chi, h, tau,
 backup_interval = 100
 tebd.itebd_v2(a, lut, t0, tau, maxiterations*tau, get_gates, env_contractor, basepath, simulation_name, backup_interval)
 
-
-"""
-if trotter_second_order:
-    g1 = gates.exp_sigmax(0.5*tau*h)
-else:
-    g1 = gates.exp_sigmax(tau*h)
-g1 = [(0, g1), (1, g1)]
-g2 = gates.exp_sigmaz_sigmaz(tau)
-g2 = [(0, 0, g2), (0, 1, g2), (1, 0, g2), (1, 1, g2)]
-
-logfilename = "imtimeev_E_D={:d}_chi={:d}_h={:e}_tau={:.0e}.dat".format(D, chi, h, tau)
-logfile = open(basepath + logfilename, "a")
-a, env = tebd.itebd(a, lut, g1, g2, "random", err=tebderr, tebd_max_iterations=maxiterations, ctmrg_chi=chi, ctmrg_test_fct=test_fct, verbose=True, logfile=logfile, fast_full_update=fast_full_update, apply_g1_twice=trotter_second_order)
-logfile.close()
-
-peps.save(a, lut, basepath + "state_D={:d}_chi={:d}_h={:e}_tau={:.0e}.peps".format(D, chi, h, tau))
-
-e = env.get_site_environment()
-mz = np.abs(e.contract(peps.make_double_layer(a[0], o=gates.sigmaz)) / e.contract(peps.make_double_layer(a[0])))
-E = -h * e.contract(peps.make_double_layer(a[0], o=gates.sigmax)) / e.contract(peps.make_double_layer(a[0]))
-e = env.get_bond_environment()
-Za = peps.make_double_layer(a[0], o=gates.sigmaz)
-Zb = peps.make_double_layer(a[1], o=gates.sigmaz)
-A = peps.make_double_layer(a[0])
-B = peps.make_double_layer(a[1])
-E += -2*e.contract(Za, Zb) / e.contract(A, B)
-f = open(basepath + "h_mz_D={:d}_chi={:d}.dat".format(D, chi), "a")
-f.write("{:.15e} {:.15e} {:.15e} {:f} {:d} {:d} {:.0e} {:d}\n".format(h, mz, E, time()-t0, D, chi, tau, maxiterations))
-f.close()
-
-print "needed {:f} seconds".format(time() - t0)
-"""
