@@ -83,7 +83,7 @@ lut = util.build_lattice_lookup_table([[1,0],[1,0]], [4,4])
 env_contractor = tebd.CTMRGEnvContractor(lut, chi, test_fct, 1e-12, 1e-15, ctmrg_verbose=True)
 simulation_name = "D={:d}_chi={:d}_h={:f}_tau={:.6f}{:s}".format(D, chi, h, tau, "_trotter2" if trotter_second_order else "")
 backup_interval = 100
-tebd.itebd_v2(a, lut, t0, tau, maxiterations*tau, get_gates, env_contractor, basepath, simulation_name, backup_interval)
+tebd.itebd_v2(a, lut, 0, tau, maxiterations*tau, get_gates, env_contractor, basepath, simulation_name, backup_interval)
 
 
 """
