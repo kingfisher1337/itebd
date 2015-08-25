@@ -200,7 +200,7 @@ def itebd_v2(a, lut, t0, dt, tmax, gate_callback, env_contractor, log_dir, simul
         if (it+1) % backup_interval == 0:
             peps.save(a, lut, log_dir + simulation_name + "_state_t={0:011.6f}.peps".format(t))
             print "saved peps at t={0:011.6f}".format(t)
-
+        
     f.close()
     
     if max_iterations % backup_interval != 0:
@@ -301,7 +301,7 @@ def itebd(
 
     return a, env
 
-
+"""
 from scipy.optimize import minimize
 
 env = "random"
@@ -328,4 +328,30 @@ def polish(a, lut, f, chi):
     res = minimize(cost_fct, peps_to_vec(a), options={"disp":True})
     print "[polish] minimize message:", res.message
     return res.x
+"""
+
+from scipy.optimize import minimize
+def polish(a, lut, env_contractor, observable_idx=-1):
+    shape = a[0].shape
+    size = a[0].size
+    n = len(a)
+    
+    def peps_to_vec(b):
+        return np.concatenate(map(lambda c: c.reshape(size), b))
+
+    def vec_to_peps(x):
+        return map(lambda c: c.reshape(shape), np.split(x, n))
+        
+    def cost_fct(x):
+        b = vec_to_peps(x)
+        env_contractor.update(b)
+        
+        E = env_contractor.get_test_values()[observable_idx]
+        print E
+        return E
+        
+    res = minimize(cost_fct, peps_to_vec(a), options={"disp":True})
+    print "[polish] minimize message:", res.message
+    
+    return vec_to_peps(res.x)
 
