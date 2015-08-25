@@ -64,6 +64,7 @@ for filename in sorted(os.listdir(basepath)):
         _trotter2 = "trotter2" in filename
         
         if _D == D and _chi == chi:
+            print filename
             a, _ = peps.load(basepath + filename)
             env_contractor.update(a)
             mz, _, E = env_contractor.get_test_values()
