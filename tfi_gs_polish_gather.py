@@ -51,7 +51,7 @@ def test_fct(a, A):
 
 
 basepath = "output_tfi_polish/"
-f = open(basepath + "h_mz_E_D={:d}_chi={:d}.dat".format((D, chi)))
+f = open(basepath + "h_mz_E_D={:d}_chi={:d}.dat".format(D, chi))
 env_contractor = tebd.CTMRGEnvContractor(lut, chi, test_fct, 1e-12, 1e-15)
 
 for filename in sorted(os.listdir(basepath)):
