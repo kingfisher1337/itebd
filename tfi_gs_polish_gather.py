@@ -52,6 +52,7 @@ def test_fct(a, A):
 
 basepath = "output_tfi_polish/"
 f = open(basepath + "h_mz_E_D={:d}_chi={:d}.dat".format(D, chi), "w")
+lut = util.build_lattice_lookup_table([[1,0],[1,0]], [4,4])
 env_contractor = tebd.CTMRGEnvContractor(lut, chi, test_fct, 1e-12, 1e-15)
 
 for filename in sorted(os.listdir(basepath)):
@@ -63,8 +64,7 @@ for filename in sorted(os.listdir(basepath)):
         _trotter2 = "trotter2" in filename
         
         if _D == D and _chi == chi:
-            a, nns = peps.load(basepath + filename)
-            lut = util.build_lattice_lookup_table(nns, [4,4])
+            a, _ = peps.load(basepath + filename)
             env_contractor.update(a)
             mz, _, E = env_contractor.get_test_values()
             f.write("{:.15e} {:.15e} {:.15e}\n".format(h, mz, E))
