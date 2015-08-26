@@ -2,6 +2,7 @@
 
 cd output_tfi
 rm "h_mz_E_D=2_chi=20.dat"
+rm "h_mz_E_D=3_chi=30.dat"
 
 for f in `ls D=2_chi=20_*_itebd.dat`
 do
@@ -10,6 +11,15 @@ do
     E=`tail -n 1 $f | cut -f 5 -d " "`
     tau=`echo $f | cut -f 4 -d "_" | cut -f 2 -d "="`
     echo $h $mz $E $tau >> "h_mz_E_D=2_chi=20.dat"
+done
+
+for f in `ls D=3_chi=30_*_itebd.dat`
+do
+    h=`echo $f | cut -f 3 -d "_" | cut -f 2 -d "="`
+    mz=`tail -n 1 $f | cut -f 3 -d " "`
+    E=`tail -n 1 $f | cut -f 5 -d " "`
+    tau=`echo $f | cut -f 4 -d "_" | cut -f 2 -d "="`
+    echo $h $mz $E $tau >> "h_mz_E_D=3_chi=30.dat"
 done
 
 cd ..
