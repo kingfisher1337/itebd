@@ -6,6 +6,9 @@ import peps
 import util
 import os
 import globallog
+from time import time
+
+t0 = time()
 
 chi = int(sys.argv[1])
 h = float(sys.argv[2])
@@ -71,4 +74,6 @@ env_contractor = tebd.CTMRGEnvContractor(lut, chi, test_fct, 1e-12, 1e-15)
 a = tebd.polish(a, lut, env_contractor)
 
 peps.save(a, lut, basepath_out + statefile)
+
+print "tfi_gs_polish.py done; needed {:f} seconds".format(time() - t0)
 
