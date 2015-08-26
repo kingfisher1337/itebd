@@ -5,6 +5,7 @@ import sys
 import peps
 import util
 import os
+import globallog
 
 from time import time
 t0 = time()
@@ -19,9 +20,11 @@ fast_full_update = "-ffu" in sys.argv
 trotter_second_order = "-trotter2" in sys.argv
 output_to_terminal = "-writehere" in sys.argv
 
-f = open("output/global.log", "a")
-f.write("tfi_gs_2d.py pid={:d}, D={:d}, chi={:d}, h={:f}, tau={:.0e}, iterations={:d}, trotter order {:d}{:s}\n".format(os.getpid(), D, chi, h, tau, maxiterations, 2 if trotter_second_order else 1, ", ffu" if fast_full_update else ""))
-f.close()
+globallog.write("tfi_gs_2d.py, D={:d}, chi={:d}, h={:f}, tau={:.0e}, iterations={:d}, trotter order {:d}{:s}\n".format(D, chi, h, tau, maxiterations, 2 if trotter_second_order else 1, ", ffu" if fast_full_update else ""))
+
+#f = open("output/global.log", "a")
+#f.write("tfi_gs_2d.py pid={:d}, D={:d}, chi={:d}, h={:f}, tau={:.0e}, iterations={:d}, trotter order {:d}{:s}\n".format(os.getpid(), D, chi, h, tau, maxiterations, 2 if #trotter_second_order else 1, ", ffu" if fast_full_update else ""))
+#f.close()
 
 basepath = "output_tfi/"
 
