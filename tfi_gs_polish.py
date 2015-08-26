@@ -11,7 +11,7 @@ h = float(sys.argv[2])
 statefile = sys.argv[3]
 output_to_terminal = "-writehere" in sys.argv
 
-f = open("output/global.log", "w")
+f = open("output/global.log", "a")
 f.write("tfi_gs_polish.py pid={:d}, chi={:d}, h={:f}, statefile=\"{:s}\"\n".format(os.getpid(), chi, h, statefile))
 f.close()
 
