@@ -29,8 +29,9 @@ globallog.write("tfi_gs_2d.py, D={:d}, chi={:d}, h={:f}, tau={:.0e}, iterations=
 basepath = "output_tfi/"
 
 if not output_to_terminal:
-    sys.stdout = open(basepath + "log_tfi_gs_2d_D={:d}_chi={:d}_h={:f}_tau={:.0e}.txt".format(D, chi, h, tau), "a")
-    sys.stderr = open(basepath + "err_tfi_gs_2d_D={:d}_chi={:d}_h={:f}_tau={:.0e}.txt".format(D, chi, h, tau), "a")
+    f = open(basepath + "log_tfi_gs_2d_D={:d}_chi={:d}_h={:f}_tau={:.0e}.txt".format(D, chi, h, tau), "a")
+    sys.stdout = f
+    sys.stderr = f
 
 if os.path.isfile(basepath + statefile):
     a, nns = peps.load(basepath + statefile)
