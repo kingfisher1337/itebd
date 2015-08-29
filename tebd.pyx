@@ -287,6 +287,8 @@ def itebd_v2(a, lut, t0, dt, tmax, gate_callback, env_contractor, log_dir, simul
             peps.save(a, lut, log_dir + simulation_name + "_state_t={0:011.6f}.peps".format(t))
             print "saved peps at t={0:011.6f}".format(t)
         
+        sys.stdout.flush()
+        
     f.close()
     
     if max_iterations % backup_interval != 0:
