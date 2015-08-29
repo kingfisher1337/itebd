@@ -6,9 +6,9 @@ from numpy.linalg import svd
 from numpy.linalg import eigh
 import ctm
 from time import time
-from util import PeriodicArray
 import peps
 import sys
+from scipy.optimize import minimize
 
 def _build_fu_env(be, X, Y):
     D1, D5, D6, k1 = X.shape
@@ -23,12 +23,129 @@ def _build_fu_env(be, X, Y):
     tmp2 = tdot(tmp2, be.e4.reshape(be.chi34, D4, D4, be.chi45), [[1,2,4],[0,1,2]])
     return tdot(tmp, tmp2, [[0,3],[3,0]])
 
-def _itebd_step(a, lut, g, j, orientation, env, cost_err, cost_max_iterations):
+def _fix_env_local_gauge(e):
+    # --> PRB 90, 064425 (2014) or arXiv:1503.05345v1
+    # take the positive approximant
+    k = e.shape[0]
+    e = e.swapaxes(1,2).reshape([k**2]*2)
+    e = 0.5 * (e + e.T.conj())
+    s, w = eigh(e)
+    idx = np.nonzero(s.clip(min=0))[0]
+    k2 = len(idx)
+    s = s[idx]
+    w = w[:,idx]
+    w = w * np.sqrt(s)
+    #return np.dot(w, w.T.conj()).reshape(k, k, k, k).swapaxes(1, 2), None, None
+    
+    # and fix the local gauge degrees of freedom
+    w = w.reshape(k, k, k2)
+    q, r = qr(w.transpose([0,2,1]).reshape(k*k2, k))
+    _, l = qr(w.transpose([1,2,0]).reshape(k*k2, k))
+    rinv = np.linalg.pinv(r)
+    linv = np.linalg.pinv(l)
+    w = dot(linv.T, q.reshape(k, k2*k)).reshape(k, k2, k).swapaxes(1, 2).reshape(k*k, k2)
+    e = dot(w, w.T.conj()).reshape(k, k, k, k).swapaxes(1, 2)
+    return e, r, l, rinv, linv
+
+def _fix_bond_gauge(a, b):
+    k, p, D = a.shape
+    q1, r1 = qr(a.reshape(k*p, D))
+    q2, r2 = qr(b.reshape(k*p, D))
+    u, s, v = svd(dot(r1, r2.T))
+    s = np.sqrt(s)
+    a = (dot(q1, u) * s).reshape(k, p, D)
+    b = (dot(q2, v.T) * s).reshape(k, p, D)
+    return a, b
+
+def _full_update(e, a2, b2, g, a3, b3):
+    cost_err = 1e-15
+    cost_max_iterations = 50
+    
+    kappa, p, D = a2.shape
+    e, r, l, rinv, linv = _fix_env_local_gauge(e)
+    a2 = dot(l, a2.reshape(kappa, p*D)).reshape(kappa, p, D)
+    b2 = dot(r, b2.reshape(kappa, p*D)).reshape(kappa, p, D)
+    a3 = dot(l, a3.reshape(kappa, p*D)).reshape(kappa, p, D)
+    b3 = dot(r, b3.reshape(kappa, p*D)).reshape(kappa, p, D)
+    
+    cost = []
+    err = []
+    abserr = []
+    converged = False
+    for it in xrange(cost_max_iterations):
+        tmp = tdot(tdot(e, tdot(a2, b2, [2,2]), [[0,2],[0,2]]), g, [[2,3],[0,1]])
+        
+        S = tdot(tmp, b3.conj(), [[3,1],[1,0]]).reshape(kappa*p*D)
+        M = tdot(tdot(e, b3, [2,0]), b3.conj(), [[2,3],[0,1]])
+        M = tdot(M, np.identity(p), [[],[]]).transpose([1,5,3,0,4,2]).reshape([kappa*p*D]*2)
+        a3vec = np.linalg.lstsq(M, S)[0]
+        a3vec /= np.max(np.abs(a3vec))
+        a3 = a3vec.reshape(kappa, p, D)
+        
+        S = tdot(tmp, a3.conj(), [[0,2],[0,1]]).reshape(kappa*p*D)
+        M = tdot(tdot(e, a3, [0,0]), a3.conj(), [[0,3],[0,1]])
+        M = tdot(M, np.identity(p), [[],[]]).transpose([1,4,3,0,5,2]).reshape([kappa*p*D]*2)
+        b3vec = np.linalg.lstsq(M, S)[0]
+        b3vec /= np.max(np.abs(b3vec))
+        b3 = b3vec.reshape(kappa, p, D)
+        
+        ncost = dot(b3vec.conj(), dot(M, b3vec)) - 2 * np.real(dot(b3vec.conj(), S))
+        nerr = np.inf if len(cost) == 0 else np.abs(1.0 - ncost / cost[-1])
+        nabserr = np.inf if len(cost) == 0 else np.abs(ncost - cost[-1])
+        cost.append(ncost)
+        err.append(nerr)
+        abserr.append(err)
+        
+        if len(err) >= 10 and nerr < cost_err:
+            converged = True
+            print "[_itebd_bond_update] needed {:d} ALS sweeps; error is {:e}".format(it, err[-1])
+            break
+    
+    if not converged:
+        sys.stderr.write("[_full_update] warning: cost function did not converge within {:d} iterations! cost relerr is {:e}\n".format(cost_max_iterations, nerr))
+    
+    a3 = dot(linv, a3.reshape(kappa, p*D)).reshape(kappa, p, D)
+    a3 /= np.max(np.abs(a3))
+    b3 = dot(rinv, b3.reshape(kappa, p*D)).reshape(kappa, p, D)
+    b3 /= np.max(np.abs(b3))
+    
+    a3, b3 = _fix_bond_gauge(a3, b3)
+    
+    return a3, b3
+
+def _gradient_full_update(e, a2, b2, g, a, b):
+    k, p, D = a.shape
+    size = k*p*D
+    
+    e = e.swapaxes(1, 2).reshape(k**2, k**2)
+    ab2 = tdot(a2, b2, [2,2]).swapaxes(1, 2).reshape(k**2, p**2)
+    e2 = dot(e.T, ab2).reshape(k**2*p**2)
+
+    def cost(x):
+        a3, b3 = np.split(x, 2)
+        a3, b3 = a3.reshape(k, p, D), b3.reshape(k, p, D)
+        ab3 = tdot(a3, b3, [2,2]).swapaxes(1, 2).reshape(k**2, p**2)
+        z = dot(dot(e.T, ab3).reshape(k**2*p**2), ab3.conj().reshape(k**2*p**2))
+        y = dot(e2, ab3.conj().reshape(k**2*p**2))
+        return z - 2 * y
+    
+    res = minimize(cost, np.concatenate([a.reshape(size), b.reshape(size)]), method="BFGS", options={"gtol":1e-10, "disp":True})
+    a, b = np.split(res.x, 2)
+    return a.reshape(k, p, D), b.reshape(k, p, D)
+    
+
+def _itebd_step(a, lut, g, j, orientation, env, mode):
     p, D = a[0].shape[:2]
+    print "[itebd] apply two-body gate using {:s}".format(mode)
     
     # apply gate to bond
     # --> between j and j+(1,0) if orientation == 0
     # --> between j and j+(0,1) if orientation == 1
+    
+    # modes allowed:
+    # "fu" --> full update using ALS (alternatig least square) sweeps (default)
+    # "su" --> simple update
+    # "gfu" --> gradient full update
     
     if orientation == 0:
         X, a2 = qr(a[j].transpose([1,3,4,0,2]).reshape(D**3, p*D))
@@ -49,74 +166,22 @@ def _itebd_step(a, lut, g, j, orientation, env, cost_err, cost_max_iterations):
     a3 = (a3[:,:D] * tmp).reshape(kappa, p, D)
     b3 = (b3[:D].T * tmp).reshape(kappa, p, D)
     
-    if orientation == 0:
-        be = env.get_bond_environment_horizontal(j)
-    else:
-        be = env.get_bond_environment_vertical(j)
-    e = _build_fu_env(be, X, Y)
+    if mode != "su":
+        if orientation == 0:
+            be = env.get_bond_environment_horizontal(j)
+        else:
+            be = env.get_bond_environment_vertical(j)
+        e = _build_fu_env(be, X, Y)
     
-    # environment gauge fixing (see arXiv:1503.05345v1)
-    #e = e.swapaxes(1,2).reshape([kappa**2]*2)
-    #e = 0.5 * (e + e.T.conj())
-    #s, w = eigh(e)
-    #print "[_itebd_step] norm svals: ", s
-    #idx = np.nonzero(s.clip(min=0))[0]
-    #s = s[idx]
-    #w = w[:,idx]
-    #w = w * np.sqrt(s)
-    #e = dot(w, w.T.conj())
-    #e = e.reshape([kappa]*4).swapaxes(1,2)
-    
-    cost = []
-    err = []
-    abserr = []
-    
-    #cost2 = np.inf
-    converged = False
-    for _ in xrange(cost_max_iterations):
-        tmp = tdot(tdot(e, tdot(a2, b2, [2,2]), [[0,2],[0,2]]), g, [[2,3],[0,1]])
-        
-        S = tdot(tmp, b3.conj(), [[3,1],[1,0]]).reshape(kappa*p*D)
-        M = tdot(tdot(e, b3, [2,0]), b3.conj(), [[2,3],[0,1]])
-        M = tdot(M, np.identity(p), [[],[]]).transpose([1,5,3,0,4,2]).reshape([kappa*p*D]*2)
-        a3vec = np.linalg.lstsq(M, S)[0]
-        a3vec /= np.max(np.abs(a3vec))
-        a3 = a3vec.reshape(kappa, p, D)
-        
-        S = tdot(tmp, a3.conj(), [[0,2],[0,1]]).reshape(kappa*p*D)
-        M = tdot(tdot(e, a3, [0,0]), a3.conj(), [[0,3],[0,1]])
-        M = tdot(M, np.identity(p), [[],[]]).transpose([1,4,3,0,5,2]).reshape([kappa*p*D]*2)
-        b3vec = np.linalg.lstsq(M, S)[0]
-        b3vec /= np.max(np.abs(b3vec))
-        b3 = b3vec.reshape(kappa, p, D)
-        
-        #cost = dot(b3vec.conj(), dot(M, b3vec)) - 2 * np.real(dot(b3vec.conj(), S))
-        #err = np.abs(cost2 - cost)
-        #if err < cost_err:
-        #    converged = True
-        #    break
-        #cost2 = cost
-        
-        ncost = dot(b3vec.conj(), dot(M, b3vec)) - 2 * np.real(dot(b3vec.conj(), S))
-        nerr = np.inf if len(cost) == 0 else np.abs(1.0 - ncost / cost[-1])
-        nabserr = np.inf if len(cost) == 0 else np.abs(ncost - cost[-1])
-        cost.append(ncost)
-        err.append(nerr)
-        abserr.append(err)
-        
-        #if len(err) >= 10 and (nerr < 1e-12 or abserr[-10:] < 1e-15):
-        if len(err) >= 10 and nerr < cost_err:
-            converged = True
-            break
-        
-    if not converged:
-        sys.stderr.write("[_itebd_step] warning: cost function did not converge! cost relerr is {:e}\n".format(nerr))
+    if mode == "fu":
+        a3, b3 = _full_update(e, a2, b2, g, a3, b3)
+    elif mode == "gfu":
+        a3, b3 = _gradient_full_update(e, a2, b2, g, a3, b3)
     
     if orientation == 0:
         return tdot(a3, X, [0,3]).swapaxes(1,2), tdot(b3, Y, [0,3]).transpose([0,2,3,4,1])
     else:
         return tdot(a3, X, [0,3]).transpose([0,4,2,1,3]), tdot(b3, Y, [0,3])
-        
 
 
 def _apply_one_body_gate(a, g):
@@ -125,7 +190,7 @@ def _apply_one_body_gate(a, g):
     return a / np.max(np.abs(a))
 
 class CTMRGEnvContractor:
-    def __init__(self, lut, chi, test_fct, relerr, abserr, max_iterations_per_update=1000, ctmrg_verbose=False, tester_verbose=False, tester_checklen=10):
+    def __init__(self, lut, chi, test_fct, relerr, abserr, max_iterations_per_update=1000, ctmrg_verbose=False, tester_verbose=False, tester_checklen=10, plotonfail=False):
         self.lut = lut
         self.chi = chi
         self.e = "random"
@@ -137,12 +202,16 @@ class CTMRGEnvContractor:
         self.tester_verbose = tester_verbose
         self.tester_checklen = tester_checklen
         self.test_values = None
+        self.plotonfail = plotonfail
     
     def update(self, a):
         A = map(peps.make_double_layer, a)
         tester = ctm.CTMRGTester(self.test_fct(a, A), self.relerr, self.abserr, self.tester_checklen, self.tester_verbose)
         self.e = ctm.ctmrg(A, self.lut, self.chi, self.e, tester, self.max_iterations_per_update, verbose=self.ctmrg_verbose)
         self.test_values = tester.get_value()
+        
+        if self.plotonfail and not tester.is_converged():
+            self.plot_ctmrg_stat(tester.get_values(), tester.get_errors(), tester.get_abserrors())
     
     def get_environment(self):
         return self.e
@@ -150,8 +219,25 @@ class CTMRGEnvContractor:
     def get_test_values(self):
         return self.test_values
     
+    def plot_ctmrg_stat(self, vals, relerrs, abserrs):
+        import matplotlib.pyplot as plt
+        plt.subplot(311)
+        for j in xrange(len(vals[0])):
+            plt.plot(map(lambda v: v[j], vals), label=str(j))
+        plt.subplot(312)
+        for j in xrange(len(relerrs[0])):
+            plt.plot(map(lambda v: v[j], relerrs), label=str(j))
+        plt.legend(loc="best")
+        plt.yscale("log")
+        plt.subplot(313)
+        for j in xrange(len(abserrs[0])):
+            plt.plot(map(lambda v: v[j], abserrs), label=str(j))
+        plt.legend(loc="best")
+        plt.yscale("log")
+        plt.show()
+    
 
-def itebd_v2(a, lut, t0, dt, tmax, gate_callback, env_contractor, log_dir, simulation_name, backup_interval):
+def itebd_v2(a, lut, t0, dt, tmax, gate_callback, env_contractor, log_dir, simulation_name, backup_interval, mode="fu"):
     
     walltime0 = time()
     max_iterations = int(tmax / dt)
@@ -179,9 +265,9 @@ def itebd_v2(a, lut, t0, dt, tmax, gate_callback, env_contractor, log_dir, simul
             env_contractor.update(a)
             
             if orientation == 0:
-                a[j], a[lut[j,1,0]] = _itebd_step(a, lut, g, j, orientation, env_contractor.get_environment(), 1e-14, 1000)
+                a[j], a[lut[j,1,0]] = _itebd_step(a, lut, g, j, orientation, env_contractor.get_environment(), mode)
             else:
-                a[j], a[lut[j,0,1]] = _itebd_step(a, lut, g, j, orientation, env_contractor.get_environment(), 1e-14, 1000)
+                a[j], a[lut[j,0,1]] = _itebd_step(a, lut, g, j, orientation, env_contractor.get_environment(), mode)
         
         for (j, g) in g1post:
             a[j] = _apply_one_body_gate(a[j], g)
@@ -209,128 +295,7 @@ def itebd_v2(a, lut, t0, dt, tmax, gate_callback, env_contractor, log_dir, simul
 
     return a
 
-def itebd(
-    a, lut,
-    g1, g2, 
-    env=None, 
-    err=1e-7, tebd_max_iterations=10000,
-    ctmrg_chi=20, ctmrg_max_iterations=1000,
-    ctmrg_test_fct=None, ctmrg_relerr=1e-12, ctmrg_abserr=1e-15, 
-    ctmrg_verbose=False, ctmrg_tester_verbose=False,
-    verbose=False, logfile=None,
-    fast_full_update=True, apply_g1_twice=False):
-    
-    t0 = time()
-    
-    if ctmrg_relerr > err:
-        sys.stderr.write("[itebd] warning: ctmrg_err > itebd_err!\n")
-    
-    n = len(a)
-    A = [None] * n
-    vals = []
-    errs = []
-    
-    for it in xrange(tebd_max_iterations):
-        for j in xrange(n):
-            A[j] = peps.make_double_layer(a[j])
-        tester = ctm.CTMRGTester(ctmrg_test_fct(a, A), ctmrg_relerr, ctmrg_abserr, verbose=ctmrg_tester_verbose)
-        env = ctm.ctmrg(A, lut, ctmrg_chi, env, tester, ctmrg_max_iterations, ctmrg_verbose)
-        
-        nval = tester.get_value()[-1]
-        nerr = np.inf if len(vals) == 0 else np.abs(1 - nval / vals[-1])
-        vals.append(nval)
-        errs.append(nerr)
-        valerr = np.max(errs[-10:])
-        
-        if logfile is not None:
-            logfile.write("{:.15e} {:.15e} {:f}".format(nval, valerr, time()-t0))
-            for x in tester.get_value()[:-1]:
-                logfile.write(" {:.15e}".format(x))
-            logfile.write("\n")
-            logfile.flush()
-            sys.stdout.flush()
-        if verbose:
-            print "[itebd] testval (it {:d}): {:e} +/- {:e}".format(it, nval, valerr)
-        if valerr < err:
-            break
 
-        t1 = time()
-        
-        if apply_g1_twice:
-            for (j, g) in g1:
-                a[j] = tdot(g, a[j], [1,0])
-                a[j] /= np.max(np.abs(a[j]))        
-            if fast_full_update and len(g1) > 0:
-                for k in xrange(n):
-                    A[k] = peps.make_double_layer(a[k])
-                tester = ctm.CTMRGTester(ctmrg_test_fct(a, A), ctmrg_relerr, ctmrg_abserr, verbose=ctmrg_tester_verbose)
-                env = ctm.ctmrg(A, lut, ctmrg_chi, env, tester, ctmrg_max_iterations, verbose)
-        
-        for (j, orientation, g) in g2:
-        
-            if not fast_full_update:
-                for k in xrange(n):
-                    A[k] = peps.make_double_layer(a[k])
-                tester = ctm.CTMRGTester(ctmrg_test_fct(a, A), ctmrg_relerr, ctmrg_abserr, verbose=ctmrg_tester_verbose)
-                env = ctm.ctmrg(A, lut, ctmrg_chi, env, tester, ctmrg_max_iterations, verbose)
-                
-                if orientation == 0:
-                    a[j], a[lut[j,1,0]] = _itebd_step(a, lut, g, j, orientation, env, ctmrg_chi, verbose, 1e-14, 1000)
-                else:
-                    a[j], a[lut[j,0,1]] = _itebd_step(a, lut, g, j, orientation, env, ctmrg_chi, verbose, 1e-14, 1000)
-            
-            if fast_full_update:
-                anew, bnew = _itebd_step(a, lut, g, j, orientation, env, ctmrg_chi, verbose, 1e-14, 1000)
-                ctm.ctmrg_post_tebd(A, lut, anew, bnew, j, orientation, ctmrg_chi, env)
-                a[j] = anew
-                A[j] = peps.make_double_layer(anew)
-                j2 = lut[j,1,0] if orientation == 0 else lut[j,0,1]
-                a[j2] = bnew
-                A[j2] = peps.make_double_layer(bnew)
-            
-        for (j, g) in g1:
-            a[j] = tdot(g, a[j], [1,0])
-            a[j] /= np.max(np.abs(a[j]))
-        
-        if verbose:
-            print "[itebd] full update needed {:f} seconds".format(time()-t1)
-        
-
-    if verbose:
-        print "[itebd] needed {:f} seconds".format(time()-t0)
-
-    return a, env
-
-"""
-from scipy.optimize import minimize
-
-env = "random"
-def polish(a, lut, f, chi):
-    shape = a[0].shape
-    size = a[0].size
-    n = len(a)
-    
-    def peps_to_vec(b):
-        return np.concatenate(map(lambda c: c.reshape(size), b))
-
-    def vec_to_peps(x):
-        return map(lambda c: c.reshape(shape), np.split(x, n))
-        
-    def cost_fct(x):
-        global env
-        b = vec_to_peps(x)
-        B = map(lambda y: peps.make_double_layer(y), b)
-        tester = ctm.CTMRGTester(f(b, B), 1e-12, 1e-15)
-        env = ctm.ctmrg(B, lut, chi, env, tester, 1000)
-        print tester.get_value()[-1]
-        return tester.get_value()[-1]
-    
-    res = minimize(cost_fct, peps_to_vec(a), options={"disp":True})
-    print "[polish] minimize message:", res.message
-    return res.x
-"""
-
-from scipy.optimize import minimize
 def polish(a, lut, env_contractor, observable_idx=-1):
     shape = a[0].shape
     size = a[0].size
