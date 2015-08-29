@@ -10,6 +10,9 @@ import globallog
 from time import time
 t0 = time()
 
+np.random.seed(56158422)
+
+
 D = int(sys.argv[1])
 chi = int(sys.argv[2])
 h = float(sys.argv[3])
@@ -25,10 +28,6 @@ else:
     backup_interval = 100
 
 globallog.write("tfi_gs_2d.py, D={:d}, chi={:d}, h={:f}, tau={:.0e}, iterations={:d}, trotter order {:d}{:s}\n".format(D, chi, h, tau, maxiterations, 2 if trotter_second_order else 1, ", ffu" if fast_full_update else ""))
-
-#f = open("output/global.log", "a")
-#f.write("tfi_gs_2d.py pid={:d}, D={:d}, chi={:d}, h={:f}, tau={:.0e}, iterations={:d}, trotter order {:d}{:s}\n".format(os.getpid(), D, chi, h, tau, maxiterations, 2 if #trotter_second_order else 1, ", ffu" if fast_full_update else ""))
-#f.close()
 
 basepath = "output_tfi/"
 
@@ -112,5 +111,5 @@ def get_gates(dt):
 
 env_contractor = tebd.CTMRGEnvContractor(lut, chi, test_fct, 1e-12, 1e-15, ctmrg_verbose=True)
 simulation_name = "D={:d}_chi={:d}_h={:f}_tau={:.6f}{:s}".format(D, chi, h, tau, "_trotter2" if trotter_second_order else "")
-tebd.itebd_v2(a, lut, t0, tau, maxiterations*tau, get_gates, env_contractor, basepath, simulation_name, backup_interval)
+tebd.itebd_v2(a, lut, t0, tau, maxiterations*tau, get_gates, env_contractor, basepath, simulation_name, backup_interval, mode="fu")
 
