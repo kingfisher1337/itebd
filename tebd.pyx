@@ -23,6 +23,12 @@ def _build_fu_env(be, X, Y):
     tmp2 = tdot(tmp2, be.e4.reshape(be.chi34, D4, D4, be.chi45), [[1,2,4],[0,1,2]])
     return tdot(tmp, tmp2, [[0,3],[3,0]])
 
+def _my_pinv(a, ratio=1e12):
+    u, s, v = svd(a)
+    s[s < (s[0]/ratio)] = 0 # keep only the largest 12 orders of magnitude
+    k = np.count_nonzero(s) # truncate singular values equal to zero
+    return dot(v.T.conj() * (1.0 / s), u.T.conj())
+
 def _fix_env_local_gauge(e):
     # --> PRB 90, 064425 (2014) or arXiv:1503.05345v1
     # take the positive approximant
@@ -41,6 +47,8 @@ def _fix_env_local_gauge(e):
     w = w.reshape(k, k, k2)
     q, r = qr(w.transpose([0,2,1]).reshape(k*k2, k))
     _, l = qr(w.transpose([1,2,0]).reshape(k*k2, k))
+    #rinv = np.linalg.pinv(r)
+    #linv = np.linalg.pinv(l)
     rinv = np.linalg.pinv(r)
     linv = np.linalg.pinv(l)
     w = dot(linv.T, q.reshape(k, k2*k)).reshape(k, k2, k).swapaxes(1, 2).reshape(k*k, k2)

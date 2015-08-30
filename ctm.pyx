@@ -388,7 +388,8 @@ def _build_projectors(chi, c1, c2, c3, c4, t1, t2, t3, t4, t5, t6, t7, t8, a1, a
     r2 = qr(dot(tmp, tmp2))[1]
     
     u, s, v = svd(dot(r1, r2.T))
-    chi2 = np.min([np.count_nonzero(s), chi])
+    s[s < (s[0]/1e12)] = 0 # keep only the largest 12 orders of magnitude
+    chi2 = np.min([np.count_nonzero(s), chi]) # truncate singular values equal to zero
     u = u[:,:chi2]
     s = 1.0 / np.sqrt(s[:chi2])
     v = v[:chi2]
