@@ -392,6 +392,8 @@ def _build_projectors(chi, c1, c2, c3, c4, t1, t2, t3, t4, t5, t6, t7, t8, a1, a
         tmp = dot(r1, r2.T)
         u, s, v = svd(tmp)
     except np.linalg.LinAlgError:
+        np.savetxt("output/r1_mat_pid{:d}.dat".format(os.getpid()), r1)
+        np.savetxt("output/r2_mat_pid{:d}.dat".format(os.getpid()), r2)
         np.savetxt("output/svd_mat_pid{:d}.dat".format(os.getpid()), tmp)
         raise
     
