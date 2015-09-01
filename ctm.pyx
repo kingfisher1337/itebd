@@ -483,18 +483,29 @@ def ctmrg(a, lut, chi, env=None, tester=None, max_iterations=10000, verbose=Fals
             env.c2[j] = np.einsum(env.t1[j], [0,1,2], delta, [2])
             env.c3[j] = np.einsum(env.t3[j], [2,0,1], delta, [2])
             env.c4[j] = np.einsum(env.t3[j], [0,1,2], delta, [2])
-    else:
-        if verbose:
-            print "[ctmrg] proceed with given CTMEnvironment"
     
     converged = False
     it = -1
     
     for it in xrange(max_iterations):
-        env.c1, env.t4, env.c4 = _ctmrg_step(a0, a1, a2, a3, env.c1, env.c2, env.c3, env.c4, env.t1, env.t2, env.t3, env.t4, lut, chi, [-1,  0])
-        env.c2, env.t1, env.c1 = _ctmrg_step(a1, a2, a3, a0, env.c2, env.c3, env.c4, env.c1, env.t2, env.t3, env.t4, env.t1, lut, chi, [ 0, -1])
-        env.c3, env.t2, env.c2 = _ctmrg_step(a2, a3, a0, a1, env.c3, env.c4, env.c1, env.c2, env.t3, env.t4, env.t1, env.t2, lut, chi, [ 1,  0])
-        env.c4, env.t3, env.c3 = _ctmrg_step(a3, a0, a1, a2, env.c4, env.c1, env.c2, env.c3, env.t4, env.t1, env.t2, env.t3, lut, chi, [ 0,  1])
+        try:
+            env.c1, env.t4, env.c4 = _ctmrg_step(a0, a1, a2, a3, env.c1, env.c2, env.c3, env.c4, env.t1, env.t2, env.t3, env.t4, lut, chi, [-1,  0])
+            env.c2, env.t1, env.c1 = _ctmrg_step(a1, a2, a3, a0, env.c2, env.c3, env.c4, env.c1, env.t2, env.t3, env.t4, env.t1, lut, chi, [ 0, -1])
+            env.c3, env.t2, env.c2 = _ctmrg_step(a2, a3, a0, a1, env.c3, env.c4, env.c1, env.c2, env.t3, env.t4, env.t1, env.t2, lut, chi, [ 1,  0])
+            env.c4, env.t3, env.c3 = _ctmrg_step(a3, a0, a1, a2, env.c4, env.c1, env.c2, env.c3, env.t4, env.t1, env.t2, env.t3, lut, chi, [ 0,  1])
+        except np.linalg.LinAlgError:
+            print "ctmrg failed in iteration {:d}/{:d}".format(it, max_iterations)
+            for j in xrange(n):
+                print "a[{:d}] contains nan:".format(j), np.isnan(a0[j]).any()
+                print "c1[{:d}] contains nan:".format(j), np.isnan(env.c1[j]).any()
+                print "c2[{:d}] contains nan:".format(j), np.isnan(env.c2[j]).any()
+                print "c3[{:d}] contains nan:".format(j), np.isnan(env.c3[j]).any()
+                print "c4[{:d}] contains nan:".format(j), np.isnan(env.c4[j]).any()
+                print "t1[{:d}] contains nan:".format(j), np.isnan(env.t1[j]).any()
+                print "t2[{:d}] contains nan:".format(j), np.isnan(env.t2[j]).any()
+                print "t3[{:d}] contains nan:".format(j), np.isnan(env.t3[j]).any()
+                print "t4[{:d}] contains nan:".format(j), np.isnan(env.t4[j]).any()
+            raise
         
         if tester.test(env):
             converged = True

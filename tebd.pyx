@@ -67,7 +67,7 @@ def _fix_bond_gauge(a, b):
 
 def _full_update(e, a2, b2, g, a3, b3):
     cost_err = 1e-15
-    cost_max_iterations = 50
+    cost_max_iterations = 100
     
     kappa, p, D = a2.shape
     e, r, l, rinv, linv = _fix_env_local_gauge(e)
@@ -144,7 +144,6 @@ def _gradient_full_update(e, a2, b2, g, a, b):
 
 def _itebd_step(a, lut, g, j, orientation, env, mode):
     p, D = a[0].shape[:2]
-    print "[itebd] apply two-body gate using {:s}".format(mode)
     
     # apply gate to bond
     # --> between j and j+(1,0) if orientation == 0
