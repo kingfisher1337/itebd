@@ -388,14 +388,22 @@ def _build_projectors(chi, c1, c2, c3, c4, t1, t2, t3, t4, t5, t6, t7, t8, a1, a
     tmp2 = _contract_big_corner(c4, t7, t6, a3)
     r2 = qr(dot(tmp, tmp2))[1]
     
+    u, s, v = svd(dot(r1, r2.T))
+    
+    """
     try:
-        tmp = dot(r1, r2.T)
-        u, s, v = svd(tmp)
+        u, s, v = svd(dot(r1, r2.T))
+        #u1, s1, v1 = svd(r1, full_matrices=False)
+        #u2, s2, v2 = svd(r2.T, full_matrices=False)
+        #u3, s, v3 = svd(((dot(v1, u2) * s2).T * s1).T)
+        #u = dot(u1, u3)
+        #v = dot(v3, v2)
     except np.linalg.LinAlgError:
         np.savetxt("output/r1_mat_pid{:d}.dat".format(os.getpid()), r1)
         np.savetxt("output/r2_mat_pid{:d}.dat".format(os.getpid()), r2)
         np.savetxt("output/svd_mat_pid{:d}.dat".format(os.getpid()), tmp)
         raise
+    """
     
     s[s < (s[0]/1e12)] = 0 # keep only the largest 12 orders of magnitude
     chi2 = np.min([np.count_nonzero(s), chi]) # truncate singular values equal to zero
@@ -463,70 +471,69 @@ def ctmrg(a, lut, chi, env=None, tester=None, max_iterations=10000, verbose=Fals
     #       |          |          |          |
     #       l          k          j          m
 
-    if env == "random":
-        if verbose:
-            print "[ctmrg] initialising with random tensors"
-        env = CTMEnvironment(lut, [None]*n, [None]*n, [None]*n, [None]*n, [None]*n, [None]*n, [None]*n, [None]*n)
-        for j in xrange(n):
-            env.c1[j] = np.random.rand(chi, chi)
-            env.c2[j] = np.random.rand(chi, chi)
-            env.c3[j] = np.random.rand(chi, chi)
-            env.c4[j] = np.random.rand(chi, chi)
-            env.t1[j] = np.random.rand(chi, a0[lut[j,0,+1]].shape[0], chi)
-            env.t2[j] = np.random.rand(chi, a0[lut[j,-1,0]].shape[1], chi)
-            env.t3[j] = np.random.rand(chi, a0[lut[j,0,-1]].shape[2], chi)
-            env.t4[j] = np.random.rand(chi, a0[lut[j,+1,0]].shape[3], chi)
-    elif env == "default" or env is None:
-        if verbose:
-            print "[ctmrg] initialising with single site tensors"
-        env = CTMEnvironment(lut, [None]*n, [None]*n, [None]*n, [None]*n, [None]*n, [None]*n, [None]*n, [None]*n)
-        D = a0[0].shape[0]
-        D2 = D / int(np.sqrt(D))
-        delta = np.identity(D / D2)[:D2].reshape(D) # if D2**2 = D holds, delta is just np.identity(D2) (aligned as a vector)
-        for j in xrange(n):
-            env.t1[j] = np.einsum(a0[j], [3,2,1,0], delta, [3])
-            env.t2[j] = np.einsum(a0[j], [0,3,2,1], delta, [3])
-            env.t3[j] = np.einsum(a0[j], [1,0,3,2], delta, [3])
-            env.t4[j] = np.einsum(a0[j], [2,1,0,3], delta, [3])
-            env.c1[j] = np.einsum(env.t1[j], [2,0,1], delta, [2])
-            env.c2[j] = np.einsum(env.t1[j], [0,1,2], delta, [2])
-            env.c3[j] = np.einsum(env.t3[j], [2,0,1], delta, [2])
-            env.c4[j] = np.einsum(env.t3[j], [0,1,2], delta, [2])
-    
-    converged = False
-    it = -1
-    
-    for it in xrange(max_iterations):
-        try:
-            env.c1, env.t4, env.c4 = _ctmrg_step(a0, a1, a2, a3, env.c1, env.c2, env.c3, env.c4, env.t1, env.t2, env.t3, env.t4, lut, chi, [-1,  0])
-            env.c2, env.t1, env.c1 = _ctmrg_step(a1, a2, a3, a0, env.c2, env.c3, env.c4, env.c1, env.t2, env.t3, env.t4, env.t1, lut, chi, [ 0, -1])
-            env.c3, env.t2, env.c2 = _ctmrg_step(a2, a3, a0, a1, env.c3, env.c4, env.c1, env.c2, env.t3, env.t4, env.t1, env.t2, lut, chi, [ 1,  0])
-            env.c4, env.t3, env.c3 = _ctmrg_step(a3, a0, a1, a2, env.c4, env.c1, env.c2, env.c3, env.t4, env.t1, env.t2, env.t3, lut, chi, [ 0,  1])
-        except np.linalg.LinAlgError:
-            print "ctmrg failed in iteration {:d}/{:d}".format(it, max_iterations)
-            for j in xrange(n):
-                print "a[{:d}] contains nan:".format(j), np.isnan(a0[j]).any()
-                print "c1[{:d}] contains nan:".format(j), np.isnan(env.c1[j]).any()
-                print "c2[{:d}] contains nan:".format(j), np.isnan(env.c2[j]).any()
-                print "c3[{:d}] contains nan:".format(j), np.isnan(env.c3[j]).any()
-                print "c4[{:d}] contains nan:".format(j), np.isnan(env.c4[j]).any()
-                print "t1[{:d}] contains nan:".format(j), np.isnan(env.t1[j]).any()
-                print "t2[{:d}] contains nan:".format(j), np.isnan(env.t2[j]).any()
-                print "t3[{:d}] contains nan:".format(j), np.isnan(env.t3[j]).any()
-                print "t4[{:d}] contains nan:".format(j), np.isnan(env.t4[j]).any()
-            raise
-        
-        if tester.test(env):
-            converged = True
-            break
+    num_tries = 3
+    for num_try in xrange(num_tries):
+        failed = False
 
-    if not converged:
-        sys.stderr.write("[ctmrg] warning: did not converge within {:d} iterations!\n".format(max_iterations))
+        if env == "random":
+            if verbose:
+                print "[ctmrg] initialising with random tensors"
+            env = CTMEnvironment(lut, [None]*n, [None]*n, [None]*n, [None]*n, [None]*n, [None]*n, [None]*n, [None]*n)
+            for j in xrange(n):
+                env.c1[j] = np.random.rand(chi, chi)
+                env.c2[j] = np.random.rand(chi, chi)
+                env.c3[j] = np.random.rand(chi, chi)
+                env.c4[j] = np.random.rand(chi, chi)
+                env.t1[j] = np.random.rand(chi, a0[lut[j,0,+1]].shape[0], chi)
+                env.t2[j] = np.random.rand(chi, a0[lut[j,-1,0]].shape[1], chi)
+                env.t3[j] = np.random.rand(chi, a0[lut[j,0,-1]].shape[2], chi)
+                env.t4[j] = np.random.rand(chi, a0[lut[j,+1,0]].shape[3], chi)
+        elif env == "default" or env is None:
+            if verbose:
+                print "[ctmrg] initialising with single site tensors"
+            env = CTMEnvironment(lut, [None]*n, [None]*n, [None]*n, [None]*n, [None]*n, [None]*n, [None]*n, [None]*n)
+            D = a0[0].shape[0]
+            D2 = D / int(np.sqrt(D))
+            delta = np.identity(D / D2)[:D2].reshape(D) # if D2**2 = D holds, delta is just np.identity(D2) (aligned as a vector)
+            for j in xrange(n):
+                env.t1[j] = np.einsum(a0[j], [3,2,1,0], delta, [3])
+                env.t2[j] = np.einsum(a0[j], [0,3,2,1], delta, [3])
+                env.t3[j] = np.einsum(a0[j], [1,0,3,2], delta, [3])
+                env.t4[j] = np.einsum(a0[j], [2,1,0,3], delta, [3])
+                env.c1[j] = np.einsum(env.t1[j], [2,0,1], delta, [2])
+                env.c2[j] = np.einsum(env.t1[j], [0,1,2], delta, [2])
+                env.c3[j] = np.einsum(env.t3[j], [2,0,1], delta, [2])
+                env.c4[j] = np.einsum(env.t3[j], [0,1,2], delta, [2])
         
-    if verbose:
-        print "[ctmrg] needed {:d} iterations and {:f} seconds".format(it+1, time()-t0)
-    
-    return env
+        converged = False
+        it = -1
+        
+        for it in xrange(max_iterations):
+            try:
+                env.c1, env.t4, env.c4 = _ctmrg_step(a0, a1, a2, a3, env.c1, env.c2, env.c3, env.c4, env.t1, env.t2, env.t3, env.t4, lut, chi, [-1,  0])
+                env.c2, env.t1, env.c1 = _ctmrg_step(a1, a2, a3, a0, env.c2, env.c3, env.c4, env.c1, env.t2, env.t3, env.t4, env.t1, lut, chi, [ 0, -1])
+                env.c3, env.t2, env.c2 = _ctmrg_step(a2, a3, a0, a1, env.c3, env.c4, env.c1, env.c2, env.t3, env.t4, env.t1, env.t2, lut, chi, [ 1,  0])
+                env.c4, env.t3, env.c3 = _ctmrg_step(a3, a0, a1, a2, env.c4, env.c1, env.c2, env.c3, env.t4, env.t1, env.t2, env.t3, lut, chi, [ 0,  1])
+            except np.linalg.LinAlgError:
+                print "[ctmrg] failed in iteration {:d}/{:d}".format(it, max_iterations)
+                env = "random"
+                failed = True
+                if num_try + 1 == num_tries:
+                    raise
+                break
+            
+            if tester.test(env):
+                converged = True
+                break
+
+        if not failed:
+            if not converged:
+                sys.stderr.write("[ctmrg] warning: did not converge within {:d} iterations!\n".format(max_iterations))
+                
+            if verbose:
+                print "[ctmrg] needed {:d} iterations and {:f} seconds".format(it+1, time()-t0)
+            
+            return env
 
 
 def ctmrg_post_tebd(a, lut, anew, bnew, j, orientation, chi, env):

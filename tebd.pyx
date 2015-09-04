@@ -254,7 +254,12 @@ def itebd_v2(a, lut, t0, dt, tmax, gate_callback, env_contractor, log_dir, simul
         log_dir += "/"
     f = open(log_dir + simulation_name + "_itebd.dat", "a")
     
-    env_contractor.update(a)
+    try:
+        env_contractor.update(a)
+    except np.linalg.LinAlgError:
+        print "[itebd] environment contractor update failed on initial update!"
+        f.close()
+        return
     
     walltime = time() - walltime0
     f.write("{:.15e} {:f}".format(t0, walltime))
@@ -269,7 +274,13 @@ def itebd_v2(a, lut, t0, dt, tmax, gate_callback, env_contractor, log_dir, simul
             a[j] = _apply_one_body_gate(a[j], g)
         
         for (j, orientation, g) in g2:
-            env_contractor.update(a)
+            try:
+                env_contractor.update(a)
+            except np.linalg.LinAlgError:
+                print "[itebd] environment contractor update failed!"
+                f.close()
+                return
+                
             
             if orientation == 0:
                 a[j], a[lut[j,1,0]] = _itebd_step(a, lut, g, j, orientation, env_contractor.get_environment(), mode)
@@ -279,7 +290,12 @@ def itebd_v2(a, lut, t0, dt, tmax, gate_callback, env_contractor, log_dir, simul
         for (j, g) in g1post:
             a[j] = _apply_one_body_gate(a[j], g)
     
-        env_contractor.update(a)
+        try:
+            env_contractor.update(a)
+        except np.linalg.LinAlgError:
+            print "[itebd] environment contractor update failed at observable evaluation!"
+            f.close()
+            return
         
         t = t0 + (it+1)*dt
         walltime = time() - walltime0
