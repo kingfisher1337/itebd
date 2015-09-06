@@ -26,13 +26,17 @@ if "-backup" in sys.argv:
     backup_interval = int(sys.argv[sys.argv.index("-backup") + 1])
 else:
     backup_interval = 100
+name_suffix = ""
+if "-namesuffix" in sys.argv:
+    name_suffix = sys.argv[sys.argv.index("-namesuffix") + 1]
 
-globallog.write("tfi_gs_2d.py, D={:d}, chi={:d}, h={:f}, tau={:.0e}, iterations={:d}, trotter order {:d}{:s}\n".format(D, chi, h, tau, maxiterations, 2 if trotter_second_order else 1, ", ffu" if fast_full_update else ""))
+globallog.write("tfi_gs_2d.py, D={:d}, chi={:d}, h={:f}, tau={:.0e}, iterations={:d}, trotter order {:d}{:s}{:s}\n".format(D, chi, h, tau, maxiterations, 2 if trotter_second_order else 1, ", ffu" if fast_full_update else "", "" if name_suffix == "" else ", name_suffix=" + name_suffix))
 
 basepath = "output_tfi/"
+name_suffix = "_" + name_suffix
 
 if not output_to_terminal:
-    f = open(basepath + "log_tfi_gs_2d_D={:d}_chi={:d}_h={:f}_tau={:.0e}.txt".format(D, chi, h, tau), "a")
+    f = open(basepath + "log_tfi_gs_2d_D={:d}_chi={:d}_h={:f}_tau={:.0e}{:s}.txt".format(D, chi, h, tau, name_suffix), "a")
     sys.stdout = f
     sys.stderr = f
 
@@ -110,6 +114,6 @@ def get_gates(dt):
     return g1pre, g2, g1post
 
 env_contractor = tebd.CTMRGEnvContractor(lut, chi, test_fct, 1e-12, 1e-15, ctmrg_verbose=True)
-simulation_name = "D={:d}_chi={:d}_h={:f}_tau={:.6f}{:s}".format(D, chi, h, tau, "_trotter2" if trotter_second_order else "")
+simulation_name = "D={:d}_chi={:d}_h={:f}_tau={:.6f}{:s}{:s}".format(D, chi, h, tau, "_trotter2" if trotter_second_order else "", name_suffix)
 tebd.itebd_v2(a, lut, t0, tau, maxiterations*tau, get_gates, env_contractor, basepath, simulation_name, backup_interval, mode="fu")
 
