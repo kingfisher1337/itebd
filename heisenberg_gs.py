@@ -19,6 +19,7 @@ maxiterations = int(sys.argv[6])
 statefile = sys.argv[7]
 
 trotter_second_order = True
+fast_full_update = False
 
 if "-backup" in sys.argv:
     backup_interval = int(sys.argv[sys.argv.index("-backup") + 1])
