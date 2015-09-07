@@ -8,6 +8,7 @@ import util
 
 import sys
 import os
+import globallog
 
 J = int(sys.argv[1])
 h = float(sys.argv[2])
@@ -28,6 +29,8 @@ if "-namesuffix" in sys.argv:
 
 #np.random.seed(523451109)
 #np.random.seed(904265234)
+
+globallog.write("heisenberg_gs.py, D={:d}, chi={:d}, J={:d}, h={:f}, tau={:.0e}, iterations={:d}, trotter order {:d}{:s}{:s}\n".format(D, chi, J, h, tau, maxiterations, 2 if trotter_second_order else 1, ", ffu" if fast_full_update else "", "" if name_suffix == "" else ", name_suffix=" + name_suffix))
 
 def test_fct(a, A):
     n = len(a)
