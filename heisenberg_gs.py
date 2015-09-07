@@ -1,4 +1,5 @@
 import numpy as np
+from numpy import tensordot as tdot
 
 import tebd
 import gates
@@ -9,69 +10,105 @@ import sys
 import os
 
 J = int(sys.argv[1])
-D = int(sys.argv[2])
-chi = int(sys.argv[3])
-tau = float(sys.argv[4])
-maxiterations = int(sys.argv[5])
-statefile = sys.argv[6]
+h = float(sys.argv[2])
+D = int(sys.argv[3])
+chi = int(sys.argv[4])
+tau = float(sys.argv[5])
+maxiterations = int(sys.argv[6])
+statefile = sys.argv[7]
 
-def test_fct(lut):
-    def test_fct_impl(a, A):
-        n = len(a)
-        X = [None] * n
-        Y = [None] * n
-        Z = [None] * n
+if "-backup" in sys.argv:
+    backup_interval = int(sys.argv[sys.argv.index("-backup") + 1])
+else:
+    backup_interval = 10
+
+name_suffix = ""
+if "-namesuffix" in sys.argv:
+    name_suffix = "_" + sys.argv[sys.argv.index("-namesuffix") + 1]
+
+#np.random.seed(523451109)
+#np.random.seed(904265234)
+
+def test_fct(a, A):
+    n = len(a)
+    P = map(lambda b: peps.make_double_layer(b, o=gates.sigmap), a)
+    M = map(lambda b: peps.make_double_layer(b, o=gates.sigmam), a)
+    Z = map(lambda b: peps.make_double_layer(b, o=gates.sigmaz), a)
+    AT = map(lambda B: B.transpose([1,2,3,0]), A)
+    PT = map(lambda B: B.transpose([1,2,3,0]), P)
+    MT = map(lambda B: B.transpose([1,2,3,0]), M)
+    ZT = map(lambda B: B.transpose([1,2,3,0]), Z)
+    
+    def test_fct_impl(e):
+        c_pm = 0
+        c_mp = 0
+        c_zz = 0
+        mz = [0, 0]
+        
         for j in xrange(n):
-            X[j] = peps.make_double_layer(a[j], o=gates.sigmax)
-            Y[j] = peps.make_double_layer(a[j], o=gates.sigmay)
-            Z[j] = peps.make_double_layer(a[j], o=gates.sigmaz)
-        def test_fct_impl2(e):
-            cxx = 0
-            cyy = 0
-            czz = 0
-            for j in xrange(n):
-                e2 = e.get_bond_environment_horizontal(j)
-                norm = e2.contract(A[j], A[lut[j,1,0]])
-                cxx += e2.contract(X[j], X[lut[j,1,0]]) / norm
-                cyy += e2.contract(Y[j], Y[lut[j,1,0]]) / norm
-                czz += e2.contract(Z[j], Z[lut[j,1,0]]) / norm
-                e2 = e.get_bond_environment_vertical(j)
-                norm = e2.contract(A[j].transpose([1,2,3,0]), A[lut[j,0,1]].transpose([1,2,3,0]))
-                cxx += e2.contract(X[j].transpose([1,2,3,0]), X[lut[j,0,1]].transpose([1,2,3,0])) / norm
-                cyy += e2.contract(Y[j].transpose([1,2,3,0]), Y[lut[j,0,1]].transpose([1,2,3,0])) / norm
-                czz += e2.contract(Z[j].transpose([1,2,3,0]), Z[lut[j,0,1]].transpose([1,2,3,0])) / norm
-            return np.real(J * (cxx + cyy + czz) / n)
-        return test_fct_impl2
+            e1 = e.get_site_environment(j)
+            mz[j] = e1.contract(Z[j]) / e1.contract(A[j])
+            e2 = e.get_bond_environment_horizontal(j)
+            norm = e2.contract(A[j], A[lut[j,1,0]])
+            c_pm += e2.contract(P[j], M[lut[j,1,0]]) / norm
+            c_mp += e2.contract(M[j], P[lut[j,1,0]]) / norm
+            c_zz += e2.contract(Z[j], Z[lut[j,1,0]]) / norm
+            norm = e2.contract(AT[j], AT[lut[j,0,1]])
+            c_pm += e2.contract(PT[j], MT[lut[j,0,1]]) / norm
+            c_mp += e2.contract(MT[j], PT[lut[j,0,1]]) / norm
+            c_zz += e2.contract(ZT[j], ZT[lut[j,0,1]]) / norm
+        
+        c_pm /= (2*n)
+        c_mp /= (2*n)
+        c_zz /= (2*n)
+        E = 2*J*(c_zz + 0.5*c_pm + 0.5*c_mp) + h*0.5*(mz[0] + mz[1])
+        
+        return mz + [c_pm, c_mp, c_zz, E]
     return test_fct_impl
 
 basepath = "output_heisenberg/"
 if os.path.isfile(basepath + statefile):
     a, nns = peps.load(basepath + statefile, dtype=complex)
     lut = util.build_lattice_lookup_table(nns, [4,4])
+    _D = int(filter(lambda s: s.find("D=") != -1, statefile[:-5].split("_"))[0].split("=")[-1])
+    _chi = int(filter(lambda s: s.find("chi=") != -1, statefile[:-5].split("_"))[0].split("=")[-1])
+    if _D != D or _chi != chi:
+        t0 = 0
+    else:
+        t0 = float(filter(lambda s: s.find("t=") != -1, statefile[:-5].split("_"))[0].split("=")[-1])
 else:
-    np.random.seed(523451109)
-#    a = [peps.get_state_random_rotsymm(2, D) + 1j*peps.get_state_random_rotsymm(2, D)] * 2
-    
-    #a = [peps.get_state_fm0(D)] * 2
-    #for j in xrange(2):
-    #    a[j] += 1e-2 * peps.get_state_random(2, D)
-    
-    a = [peps.get_state_ising(0.1)] * 2
-    
+    a = list(peps.get_state_neel(D))
+    #a = peps.get_state_pm(D)
+    #a = [a]*2
+    a[0] += 1e-3 * (np.random.rand(2,D,D,D,D) - 0.5)
+    a[1] += 1e-3 * (np.random.rand(2,D,D,D,D) - 0.5)
+    #a = peps.get_state_random_rotsymm(2, D)
+    #a = [a]*2
     lut = util.build_lattice_lookup_table([[1,0],[1,0]], [4,4])
+    t0 = 0
 
-g1 = []
-expxx = gates.exp_sigmax_sigmax(-J*tau)
-expyy = gates.exp_sigmay_sigmay(-J*tau)
-expzz = gates.exp_sigmaz_sigmaz(-J*tau)
-g2 = [(0, 0, expxx), (0, 1, expxx), (1, 0, expxx), (1, 1, expxx),
-      (0, 0, expyy), (0, 1, expyy), (1, 0, expyy), (1, 1, expyy),
-      (0, 0, expzz), (0, 1, expzz), (1, 0, expzz), (1, 1, expzz)]
 
-logfilename = "imtimeev_E_J={:d}_D={:d}_chi={:d}_tau={:.0e}.dat".format(J, D, chi, tau)
-logfile = open(basepath + logfilename, "a")
-a, env = tebd.itebd(a, lut, g1, g2, "random", err=1e-8, tebd_max_iterations=maxiterations, ctmrg_chi=chi, ctmrg_test_fct=test_fct(lut), verbose=True, logfile=logfile)
-logfile.close()
+def get_gates(dt):
+    gx = gates.exp_sigmax_sigmax(-0.5*J*dt).reshape(4, 4)
+    gy = gates.exp_sigmay_sigmay(-0.5*J*dt).reshape(4, 4)
+    gz = gates.exp_sigmaz_sigmaz(-0.5*J*dt).reshape(4, 4)
+    gHalf = np.dot(np.dot(gx, gy), gz).reshape(2, 2, 2, 2)
+    gx = gates.exp_sigmax_sigmax(-J*dt).reshape(4, 4)
+    gy = gates.exp_sigmay_sigmay(-J*dt).reshape(4, 4)
+    gz = gates.exp_sigmaz_sigmaz(-J*dt).reshape(4, 4)
+    gFull = np.dot(np.dot(gx, gy), gz).reshape(2, 2, 2, 2)
+    g2 = [(0,0,gHalf),(0,1,gHalf),(1,0,gHalf),(1,1,gFull),(1,0,gHalf),(0,1,gHalf),(0,0,gHalf)]
+    
+    if h == 0:
+        return [], g2, []
+    else:
+        g1a = gates.exp_sigmaz(-0.5*dt*h)
+        g1b = gates.exp_sigmaz(+0.5*dt*h)
+        g1 = [(0,g1a), (1,g1b)]
+        return g1, g2, g1
+    
 
-peps.save(a, lut, basepath + "state_J={:d}_D={:d}_chi={:d}_tau={:.0e}.peps".format(J, D, chi, tau))
+env_contractor = tebd.CTMRGEnvContractor(lut, chi, test_fct, 1e-9, 1e-14, max_iterations_per_update=500, ctmrg_verbose=True, plotonfail=False)
+simulation_name = "J={:d}_h={:f}_D={:d}_chi={:d}_tau={:.6f}{:s}".format(J, h, D, chi, tau, name_suffix)
+tebd.itebd_v2(a, lut, t0, tau, maxiterations*tau, get_gates, env_contractor, basepath, simulation_name, backup_interval)
 
