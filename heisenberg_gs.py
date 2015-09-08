@@ -96,6 +96,8 @@ basepath = "output_heisenberg/"
 if os.path.isfile(basepath + statefile):
     a, nns = peps.load(basepath + statefile, dtype=complex)
     lut = util.build_lattice_lookup_table(nns, [4,4])
+    if a[0].shape[1] < D:
+        a = peps.increase_bond_dimension(a, D)
     _D = int(filter(lambda s: s.find("D=") != -1, statefile[:-5].split("_"))[0].split("=")[-1])
     _chi = int(filter(lambda s: s.find("chi=") != -1, statefile[:-5].split("_"))[0].split("=")[-1])
     _h = float(filter(lambda s: s.find("h=") != -1, statefile[:-5].split("_"))[0].split("=")[-1])
