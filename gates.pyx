@@ -20,7 +20,7 @@ sigmam = np.array([[0., 1], [0, 0]])
 sigmam.flags.writeable = False
 
 sigmaxsigmax = np.outer(sigmax, sigmax).reshape(2, 2, 2, 2).swapaxes(1, 2)
-sigmaysigmay = np.outer(sigmay, sigmay).reshape(2, 2, 2, 2).swapaxes(1, 2)
+sigmaysigmay = np.real(np.outer(sigmay, sigmay)).reshape(2, 2, 2, 2).swapaxes(1, 2)
 
 """
 <j,k| sigmaz sigmaz |l,m>
@@ -84,11 +84,12 @@ def exp_sigmax_sigmax(alpha):
     return g
 
 def exp_sigmay_sigmay(alpha):
-    g = np.zeros((2,2,2,2))
-    g[0,0,0,0] = g[0,1,0,1] = g[1,0,1,0] = g[1,1,1,1] = np.cosh(alpha)
-    g[0,0,1,1] = g[1,1,0,0] = np.sinh(alpha)
-    g[0,1,1,0] = g[1,0,0,1] = -np.sinh(alpha)
-    return g
+    #g = np.zeros((2,2,2,2))
+    #g[0,0,0,0] = g[0,1,0,1] = g[1,0,1,0] = g[1,1,1,1] = np.cosh(alpha)
+    #g[0,0,1,1] = g[1,1,0,0] = np.sinh(alpha)
+    #g[0,1,1,0] = g[1,0,0,1] = -np.sinh(alpha)
+    #return g
+    return exp_two_body_gate(alpha * sigmaysigmay)
 
 def exp_sigmaz_sigmaz(alpha):
     """
