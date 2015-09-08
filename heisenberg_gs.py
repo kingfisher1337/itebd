@@ -37,39 +37,59 @@ globallog.write("heisenberg_gs.py, D={:d}, chi={:d}, J={:d}, h={:f}, tau={:.0e},
 
 def test_fct(a, A):
     n = len(a)
-    P = map(lambda b: peps.make_double_layer(b, o=gates.sigmap), a)
-    M = map(lambda b: peps.make_double_layer(b, o=gates.sigmam), a)
+    #P = map(lambda b: peps.make_double_layer(b, o=gates.sigmap), a)
+    #M = map(lambda b: peps.make_double_layer(b, o=gates.sigmam), a)
     Z = map(lambda b: peps.make_double_layer(b, o=gates.sigmaz), a)
     AT = map(lambda B: B.transpose([1,2,3,0]), A)
-    PT = map(lambda B: B.transpose([1,2,3,0]), P)
-    MT = map(lambda B: B.transpose([1,2,3,0]), M)
+    #PT = map(lambda B: B.transpose([1,2,3,0]), P)
+    #MT = map(lambda B: B.transpose([1,2,3,0]), M)
     ZT = map(lambda B: B.transpose([1,2,3,0]), Z)
     
+    X = map(lambda b: peps.make_double_layer(b, o=gates.sigmax), a)
+    Y = map(lambda b: peps.make_double_layer(b, o=gates.sigmay), a)
+    XT = map(lambda B: B.transpose([1,2,3,0]), X)
+    YT = map(lambda B: B.transpose([1,2,3,0]), Y)
+    
     def test_fct_impl(e):
-        c_pm = 0
-        c_mp = 0
+        #c_pm = 0
+        #c_mp = 0
         c_zz = 0
+        
+        c_xx = 0
+        c_yy = 0
+        
         mz = [0, 0]
         
         for j in xrange(n):
             e1 = e.get_site_environment(j)
             mz[j] = e1.contract(Z[j]) / e1.contract(A[j])
+            
             e2 = e.get_bond_environment_horizontal(j)
             norm = e2.contract(A[j], A[lut[j,1,0]])
-            c_pm += e2.contract(P[j], M[lut[j,1,0]]) / norm
-            c_mp += e2.contract(M[j], P[lut[j,1,0]]) / norm
+            #c_pm += e2.contract(P[j], M[lut[j,1,0]]) / norm
+            #c_mp += e2.contract(M[j], P[lut[j,1,0]]) / norm
+            c_xx += e2.contract(X[j], X[lut[j,1,0]]) / norm
+            c_yy += np.real(e2.contract(Y[j], Y[lut[j,1,0]]) / norm)
             c_zz += e2.contract(Z[j], Z[lut[j,1,0]]) / norm
+            
+            e2 = e.get_bond_environment_vertical(j)
             norm = e2.contract(AT[j], AT[lut[j,0,1]])
-            c_pm += e2.contract(PT[j], MT[lut[j,0,1]]) / norm
-            c_mp += e2.contract(MT[j], PT[lut[j,0,1]]) / norm
+            #c_pm += e2.contract(PT[j], MT[lut[j,0,1]]) / norm
+            #c_mp += e2.contract(MT[j], PT[lut[j,0,1]]) / norm
+            c_xx += e2.contract(XT[j], XT[lut[j,0,1]]) / norm
+            c_yy += np.real(e2.contract(YT[j], YT[lut[j,0,1]]) / norm)
             c_zz += e2.contract(ZT[j], ZT[lut[j,0,1]]) / norm
         
-        c_pm /= (2*n)
-        c_mp /= (2*n)
+        #c_pm /= (2*n)
+        #c_mp /= (2*n)
+        c_xx /= (2*n)
+        c_yy /= (2*n)
         c_zz /= (2*n)
-        E = 2*J*(c_zz + 0.5*c_pm + 0.5*c_mp) + h*0.5*(mz[0] + mz[1])
+        #E = 2*J*(c_zz + 0.5*(c_pm+*c_mp)) + h*0.5*(mz[0] + mz[1])
+        E = 2*J*(c_xx + c_yy + c_zz) + h*0.5*(mz[0] + mz[1])
         
-        return mz + [c_pm, c_mp, c_zz, E]
+        #return mz + [c_pm, c_mp, c_zz, E]
+        return mz + [c_xx, c_yy, c_zz, E]
     return test_fct_impl
 
 basepath = "output_heisenberg/"
@@ -78,18 +98,16 @@ if os.path.isfile(basepath + statefile):
     lut = util.build_lattice_lookup_table(nns, [4,4])
     _D = int(filter(lambda s: s.find("D=") != -1, statefile[:-5].split("_"))[0].split("=")[-1])
     _chi = int(filter(lambda s: s.find("chi=") != -1, statefile[:-5].split("_"))[0].split("=")[-1])
-    if _D != D or _chi != chi:
+    _h = float(filter(lambda s: s.find("h=") != -1, statefile[:-5].split("_"))[0].split("=")[-1])
+    if _D != D or _chi != chi or _h != h:
         t0 = 0
     else:
         t0 = float(filter(lambda s: s.find("t=") != -1, statefile[:-5].split("_"))[0].split("=")[-1])
 else:
     a = list(peps.get_state_neel(D))
-    #a = peps.get_state_pm(D)
-    #a = [a]*2
-    a[0] += 1e-3 * (np.random.rand(2,D,D,D,D) - 0.5)
-    a[1] += 1e-3 * (np.random.rand(2,D,D,D,D) - 0.5)
-    #a = peps.get_state_random_rotsymm(2, D)
-    #a = [a]*2
+    da = 1e-2
+    a[0] += da * (np.random.rand(2,D,D,D,D) - 0.5)
+    a[1] += da * (np.random.rand(2,D,D,D,D) - 0.5)
     lut = util.build_lattice_lookup_table([[1,0],[1,0]], [4,4])
     t0 = 0
 
