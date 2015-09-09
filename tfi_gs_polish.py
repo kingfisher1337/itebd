@@ -71,7 +71,7 @@ a, nns = peps.load(basepath_in + statefile)
 lut = util.build_lattice_lookup_table(nns, [4,4])
 
 env_contractor = tebd.CTMRGEnvContractor(lut, chi, test_fct, 1e-12, 1e-15)
-a = tebd.polish(a, lut, env_contractor)
+a = tebd.polish(a, lut, env_contractor, pepsfilename=(basepath_out + statefile))
 
 peps.save(a, lut, basepath_out + statefile)
 

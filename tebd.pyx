@@ -331,7 +331,7 @@ def polish(a, lut, env_contractor, observable_idx=-1, pepsfilename=None):
     shape = a[0].shape
     size = a[0].size
     n = len(a)
-    E0 = 1e100
+    E0 = [1e100] # dirty workaround to access E0 from cost_fct
     
     def peps_to_vec(b):
         return np.concatenate(map(lambda c: c.reshape(size), b))
@@ -345,14 +345,14 @@ def polish(a, lut, env_contractor, observable_idx=-1, pepsfilename=None):
         
         E = env_contractor.get_test_values()[observable_idx]
         
-        if E < E0:
+        if E < E0[0]:
             for x in env_contractor.get_test_values():
                 sys.stdout.write("{:.15e} ".format(x))
             sys.stdout.write("\n")
             sys.stdout.flush()
             if pepsfilename is not None:
                 peps.save(a, lut, pepsfilename)
-            E0 = E
+            E0[0] = E
         
         return E
         
