@@ -32,6 +32,10 @@ def _my_pinv(a, ratio=1e12):
 def _fix_env_local_gauge(e):
     # --> PRB 90, 064425 (2014) or arXiv:1503.05345v1
     # take the positive approximant
+    
+    #I = np.identity(e.shape[0])
+    #return e, I, I, I, I
+    
     k = e.shape[0]
     e = e.swapaxes(1,2).reshape([k**2]*2)
     e = 0.5 * (e + e.T.conj())
@@ -41,7 +45,9 @@ def _fix_env_local_gauge(e):
     s = s[idx]
     w = w[:,idx]
     w = w * np.sqrt(s)
-    #return np.dot(w, w.T.conj()).reshape(k, k, k, k).swapaxes(1, 2), None, None
+    
+    #I = np.identity(k)
+    #return np.dot(w, w.T.conj()).reshape(k, k, k, k).swapaxes(1, 2), I, I, I, I
     
     # and fix the local gauge degrees of freedom
     w = w.reshape(k, k, k2)
@@ -321,10 +327,11 @@ def itebd_v2(a, lut, t0, dt, tmax, gate_callback, env_contractor, log_dir, simul
     return a
 
 
-def polish(a, lut, env_contractor, observable_idx=-1):
+def polish(a, lut, env_contractor, observable_idx=-1, pepsfilename=None):
     shape = a[0].shape
     size = a[0].size
     n = len(a)
+    E0 = 1e100
     
     def peps_to_vec(b):
         return np.concatenate(map(lambda c: c.reshape(size), b))
@@ -337,10 +344,19 @@ def polish(a, lut, env_contractor, observable_idx=-1):
         env_contractor.update(b)
         
         E = env_contractor.get_test_values()[observable_idx]
-        print E
+        
+        if E < E0:
+            for x in env_contractor.get_test_values():
+                sys.stdout.write("{:.15e} ".format(x))
+            sys.stdout.write("\n")
+            sys.stdout.flush()
+            if pepsfilename is not None:
+                peps.save(a, lut, pepsfilename)
+            E0 = E
+        
         return E
         
-    res = minimize(cost_fct, peps_to_vec(a), options={"disp":True})
+    res = minimize(cost_fct, peps_to_vec(a), method="BFGS", options={"disp":True})
     print "[polish] minimize message:", res.message
     
     return vec_to_peps(res.x)
