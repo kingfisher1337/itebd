@@ -15,13 +15,16 @@ J = int(sys.argv[2])
 h = float(sys.argv[3])
 statefile = sys.argv[4]
 
+num_threads = 1
+if "-threads" in sys.argv:
+    num_threads = int(sys.argv[sys.argv.index("-threads") + 1])
+
 globallog.write("heisenberg_gs_polish.py, chi={:d}, J={:d}, h={:f}, statefile=\"{:s}\"\n".format(chi, J, h, statefile))
 
-basepath_in = "output_heisenberg/"
-basepath_out = "output_heisenberg_polish/"
+basepath = "output_heisenberg_polish/"
 
 if not ("-writehere" in sys.argv):
-    logfile = open(basepath_out + statefile[:-5] + ".log", "a")
+    logfile = open(basepath + statefile[statefile.rfind("/")+1:-5] + ".log", "a")
     sys.stdout = logfile
     sys.stderr = logfile
 
@@ -67,13 +70,13 @@ def test_fct(a, A):
         return mz + [c_xx, c_yy, c_zz, E]
     return test_fct_impl
 
-a, nns = peps.load(basepath_in + statefile)
+a, nns = peps.load(statefile)
 lut = util.build_lattice_lookup_table(nns, [4,4])
 
 env_contractor = tebd.CTMRGEnvContractor(lut, chi, test_fct, 1e-12, 1e-15)
-a = tebd.polish(a, lut, env_contractor, pepsfilename=(basepath_out + statefile))
+a = tebd.polish(a, lut, env_contractor, pepsfilename=(basepath + statefile[statefile.rfind("/")+1:]), num_threads=num_threads)
 
-peps.save(a, lut, basepath_out + statefile)
+peps.save(a, lut, basepath + statefile[statefile.rfind("/")+1:])
 
 print "heisenberg_gs_polish.py done; needed {:f} seconds".format(time() - t0)
 

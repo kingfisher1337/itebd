@@ -203,10 +203,10 @@ def _apply_one_body_gate(a, g):
     return a / np.max(np.abs(a))
 
 class CTMRGEnvContractor:
-    def __init__(self, lut, chi, test_fct, relerr, abserr, max_iterations_per_update=1000, ctmrg_verbose=False, tester_verbose=False, tester_checklen=10, plotonfail=False):
+    def __init__(self, lut, chi, test_fct, relerr, abserr, max_iterations_per_update=1000, ctmrg_verbose=False, tester_verbose=False, tester_checklen=10, plotonfail=False, e="random"):
         self.lut = lut
         self.chi = chi
-        self.e = "random"
+        self.e = e
         self.test_fct = test_fct
         self.relerr = relerr
         self.abserr = abserr
@@ -249,6 +249,8 @@ class CTMRGEnvContractor:
         plt.yscale("log")
         plt.show()
     
+    def clone(self):
+        return CTMRGEnvContractor(self.lut, self.chi, self.test_fct, self.relerr, self.abserr, self.max_iterations_per_update, self.ctmrg_verbose, self.tester_verbose, self.tester_checklen, self.plotonfail, self.e.clone())
 
 def itebd_v2(a, lut, t0, dt, tmax, gate_callback, env_contractor, log_dir, simulation_name, backup_interval, mode="fu"):
     
@@ -327,36 +329,52 @@ def itebd_v2(a, lut, t0, dt, tmax, gate_callback, env_contractor, log_dir, simul
     return a
 
 
-def polish(a, lut, env_contractor, observable_idx=-1, pepsfilename=None):
+from cython.parallel import prange
+from cython.parallel import threadid
+
+def polish(a, lut, env_contractor, energy_idx=-1, pepsfilename=None, num_threads=1):
+    t0 = time()
     shape = a[0].shape
     size = a[0].size
     n = len(a)
-    E0 = [1e100] # dirty workaround to access E0 from cost_fct
+    dx = 1.4901161193847656e-08
     
     def peps_to_vec(b):
         return np.concatenate(map(lambda c: c.reshape(size), b))
 
     def vec_to_peps(x):
         return map(lambda c: c.reshape(shape), np.split(x, n))
-        
+    
     def cost_fct(x):
         b = vec_to_peps(x)
         env_contractor.update(b)
+        E = env_contractor.get_test_values()[energy_idx]
         
-        E = env_contractor.get_test_values()[observable_idx]
+        for testval in env_contractor.get_test_values():
+            sys.stdout.write("{:.15e} ".format(testval))
+        sys.stdout.write("{:f}\n".format(time() - t0))
+        sys.stdout.flush()
+        if pepsfilename is not None:
+            peps.save(b, lut, pepsfilename)
         
-        if E < E0[0]:
-            for x in env_contractor.get_test_values():
-                sys.stdout.write("{:.15e} ".format(x))
-            sys.stdout.write("\n")
-            sys.stdout.flush()
-            if pepsfilename is not None:
-                peps.save(a, lut, pepsfilename)
-            E0[0] = E
+        ec = [None]*num_threads
+        for k in xrange(num_threads):
+            ec[k] = env_contractor.clone()
         
-        return E
+        cdef int j
+        grad = np.empty(n)
+        for j in prange(n, nogil=True, num_threads=num_threads):
+            with gil:
+                tid = threadid()
+                y = np.copy(x)
+                y[j] += dx
+                ec[tid].update(vec_to_peps(y))
+                grad[j] = ec[tid].get_test_values()[energy_idx]
+        grad = (grad - E) / dx
         
-    res = minimize(cost_fct, peps_to_vec(a), method="BFGS", options={"disp":True})
+        return E, grad
+        
+    res = minimize(cost_fct, peps_to_vec(a), jac=True, method="BFGS", options={"disp":True})
     print "[polish] minimize message:", res.message
     
     return vec_to_peps(res.x)

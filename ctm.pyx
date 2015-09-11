@@ -269,6 +269,17 @@ class CTMEnvironment:
         e5 = self.t4[lut[-1,0]]
         e6 = tdot(tdot(self.c1[lut[-1,-1]], self.t1[lut[0,-1]], [1,0]), self.c2[lut[1,-1]], [2,0])
         return BondEnvironment(e1, e2, e3, e4, e5, e6)
+    
+    def clone(self):
+        c1 = map(lambda x: np.copy(x), self.c1)
+        c2 = map(lambda x: np.copy(x), self.c2)
+        c3 = map(lambda x: np.copy(x), self.c3)
+        c4 = map(lambda x: np.copy(x), self.c4)
+        t1 = map(lambda x: np.copy(x), self.t1)
+        t2 = map(lambda x: np.copy(x), self.t2)
+        t3 = map(lambda x: np.copy(x), self.t3)
+        t4 = map(lambda x: np.copy(x), self.t4)
+        return CTMEnvironment(self.lut, c1, c2, c3, c4, t1, t2, t3, t4)
 
 def _contract_big_corner(c, t1, t4, a):
     """
