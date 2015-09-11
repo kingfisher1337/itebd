@@ -373,13 +373,14 @@ def polish(a, lut, env_contractor, energy_idx=-1, pepsfilename=None):
         
         cdef int j
         grad = np.empty(m)
-        for j in prange(m, nogil=True):#, num_threads=num_threads):
+        for j in prange(m, nogil=True):
             with gil:
-                tid = threadid()
                 y = np.copy(x)
                 y[j] += dx
-                ec[tid].update(vec_to_peps(y))
-                grad[j] = ec[tid].get_test_values()[energy_idx]
+                ec_thread = ec[threadid()]
+                ec_thread.update(vec_to_peps(y))
+                test_values = ec_thread.get_test_values()
+                grad[j] = test_values[energy_idx]
         grad = (grad - E) / dx
         
         return E, grad
