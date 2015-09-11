@@ -337,6 +337,7 @@ def polish(a, lut, env_contractor, energy_idx=-1, pepsfilename=None, num_threads
     shape = a[0].shape
     size = a[0].size
     n = len(a)
+    m = n * size
     dx = 1.4901161193847656e-08
     
     def peps_to_vec(b):
@@ -362,8 +363,8 @@ def polish(a, lut, env_contractor, energy_idx=-1, pepsfilename=None, num_threads
             ec[k] = env_contractor.clone()
         
         cdef int j
-        grad = np.empty(n)
-        for j in prange(n, nogil=True, num_threads=num_threads):
+        grad = np.empty(m)
+        for j in prange(m, nogil=True, num_threads=num_threads):
             with gil:
                 tid = threadid()
                 y = np.copy(x)
@@ -372,7 +373,6 @@ def polish(a, lut, env_contractor, energy_idx=-1, pepsfilename=None, num_threads
                 grad[j] = ec[tid].get_test_values()[energy_idx]
         grad = (grad - E) / dx
         
-        print grad.shape
         return E, grad
         
     res = minimize(cost_fct, peps_to_vec(a), jac=True, method="BFGS", options={"disp":True})
