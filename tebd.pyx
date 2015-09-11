@@ -366,7 +366,7 @@ def polish(a, lut, env_contractor, energy_idx=-1, pepsfilename=None, num_threads
         
         cdef int j
         grad = np.empty(m)
-        for j in prange(m, nogil=True, num_threads=num_threads):
+        for j in prange(m, nogil=True):#, num_threads=num_threads):
             with gil:
                 tid = threadid()
                 y = np.copy(x)
