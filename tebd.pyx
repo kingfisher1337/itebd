@@ -250,7 +250,9 @@ class CTMRGEnvContractor:
         plt.show()
     
     def clone(self):
-        return CTMRGEnvContractor(self.lut, self.chi, self.test_fct, self.relerr, self.abserr, self.max_iterations_per_update, self.ctmrg_verbose, self.tester_verbose, self.tester_checklen, self.plotonfail, self.e.clone())
+        ec = CTMRGEnvContractor(self.lut, self.chi, self.test_fct, self.relerr, self.abserr, self.max_iterations_per_update, self.ctmrg_verbose, self.tester_verbose, self.tester_checklen, self.plotonfail, self.e.clone())
+        ec.test_values = np.copy(self.test_values)
+        return ec
 
 def itebd_v2(a, lut, t0, dt, tmax, gate_callback, env_contractor, log_dir, simulation_name, backup_interval, mode="fu"):
     
