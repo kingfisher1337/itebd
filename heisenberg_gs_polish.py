@@ -15,10 +15,6 @@ J = int(sys.argv[2])
 h = float(sys.argv[3])
 statefile = sys.argv[4]
 
-num_threads = 1
-if "-threads" in sys.argv:
-    num_threads = int(sys.argv[sys.argv.index("-threads") + 1])
-
 globallog.write("heisenberg_gs_polish.py, chi={:d}, J={:d}, h={:f}, statefile=\"{:s}\"\n".format(chi, J, h, statefile))
 
 basepath = "output_heisenberg_polish/"
@@ -74,7 +70,7 @@ a, nns = peps.load(statefile)
 lut = util.build_lattice_lookup_table(nns, [4,4])
 
 env_contractor = tebd.CTMRGEnvContractor(lut, chi, test_fct, 1e-12, 1e-15)
-a = tebd.polish(a, lut, env_contractor, pepsfilename=(basepath + statefile[statefile.rfind("/")+1:]), num_threads=num_threads)
+a = tebd.polish(a, lut, env_contractor, pepsfilename=(basepath + statefile[statefile.rfind("/")+1:]))
 
 peps.save(a, lut, basepath + statefile[statefile.rfind("/")+1:])
 

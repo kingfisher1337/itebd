@@ -331,9 +331,11 @@ def itebd_v2(a, lut, t0, dt, tmax, gate_callback, env_contractor, log_dir, simul
 
 from cython.parallel import prange
 from cython.parallel import threadid
+cimport openmp
 
-def polish(a, lut, env_contractor, energy_idx=-1, pepsfilename=None, num_threads=1):
+def polish(a, lut, env_contractor, energy_idx=-1, pepsfilename=None):
     cdef int m
+    cdef int num_threads
 
     t0 = time()
     shape = a[0].shape
@@ -341,6 +343,9 @@ def polish(a, lut, env_contractor, energy_idx=-1, pepsfilename=None, num_threads
     n = len(a)
     m = n * size
     dx = 1.4901161193847656e-08
+    
+    with nogil:
+        num_threads = openmp.omp_get_num_threads()
     
     def peps_to_vec(b):
         return np.concatenate(map(lambda c: c.reshape(size), b))
