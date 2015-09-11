@@ -372,6 +372,7 @@ def polish(a, lut, env_contractor, energy_idx=-1, pepsfilename=None, num_threads
                 grad[j] = ec[tid].get_test_values()[energy_idx]
         grad = (grad - E) / dx
         
+        print grad.shape
         return E, grad
         
     res = minimize(cost_fct, peps_to_vec(a), jac=True, method="BFGS", options={"disp":True})
