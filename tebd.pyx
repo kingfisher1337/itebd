@@ -347,6 +347,8 @@ def polish(a, lut, env_contractor, energy_idx=-1, pepsfilename=None):
     with nogil:
         num_threads = openmp.omp_get_num_threads()
     
+    print "[polish] started using {:d} threads".format(num_threads)
+    
     def peps_to_vec(b):
         return np.concatenate(map(lambda c: c.reshape(size), b))
 
