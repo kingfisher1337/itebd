@@ -333,6 +333,8 @@ from cython.parallel import prange
 from cython.parallel import threadid
 
 def polish(a, lut, env_contractor, energy_idx=-1, pepsfilename=None, num_threads=1):
+    cdef int m
+
     t0 = time()
     shape = a[0].shape
     size = a[0].size
