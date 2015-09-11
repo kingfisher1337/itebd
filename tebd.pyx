@@ -375,7 +375,7 @@ def polish(a, lut, env_contractor, energy_idx=-1, pepsfilename=None):
         
         cdef int j
         grad = np.empty(m)
-        for j in prange(m, nogil=True):
+        for j in prange(m, nogil=True, schedule="guided"):
             with gil:
                 y = np.copy(x)
                 y[j] += dx
