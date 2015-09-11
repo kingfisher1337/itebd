@@ -345,7 +345,7 @@ def polish(a, lut, env_contractor, energy_idx=-1, pepsfilename=None):
     dx = 1.4901161193847656e-08
     
     with nogil:
-        num_threads = openmp.omp_get_num_threads()
+        num_threads = openmp.omp_get_max_threads()
     
     print "[polish] started using {:d} threads".format(num_threads)
     
