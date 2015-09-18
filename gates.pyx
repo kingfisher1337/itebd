@@ -1,4 +1,5 @@
 import numpy as np
+from numpy import dot
 from scipy.linalg import expm
 
 delta = np.array([[1.,0],[0,1]])
@@ -19,22 +20,27 @@ sigmap.flags.writeable = False
 sigmam = np.array([[0., 1], [0, 0]])
 sigmam.flags.writeable = False
 
-sigmaxsigmax = np.outer(sigmax, sigmax).reshape(2, 2, 2, 2).swapaxes(1, 2)
-sigmaysigmay = np.real(np.outer(sigmay, sigmay)).reshape(2, 2, 2, 2).swapaxes(1, 2)
+def odot2(a, b):
+    sa, sb = a.shape, b.shape
+    return np.outer(a, b).reshape(sa[0], sa[1], sb[0], sb[1]).swapaxes(1, 2)
 
-"""
-<j,k| sigmaz sigmaz |l,m>
-"""
-#sigmazsigmaz = np.fromfunction(lambda j,k,l,m: delta[j,l]*delta[k,m]*(-1)**(j+k), (2,2,2,2), dtype=int)
-sigmazsigmaz = np.outer(sigmaz, sigmaz).reshape(2, 2, 2, 2).swapaxes(1, 2)
+sigmaxsigmax = odot2(sigmax, sigmax)
+sigmaxsigmax.flags.writeable = False
+sigmaysigmay = np.real(odot2(sigmay, sigmay))
+sigmaysigmay.flags.writeable = False
+sigmazsigmaz = odot2(sigmaz, sigmaz)
 sigmazsigmaz.flags.writeable = False
 
-
-sigmapsigmam = np.outer(sigmap, sigmam).reshape(2, 2, 2, 2).swapaxes(1, 2)
+sigmapsigmam = odot2(sigmap, sigmam)
 sigmapsigmam.flags.writeable = False
-
-sigmamsigmap = np.outer(sigmam, sigmap).reshape(2, 2, 2, 2).swapaxes(1, 2)
+sigmamsigmap = odot2(sigmam, sigmap)
 sigmamsigmap.flags.writeable = False
+
+def odot3(a, b, c):
+    sa, sb, sc = a.shape, b.shape, c.shape
+    return np.outer(np.outer(a, b), c).reshape(sa[0], sa[1], sb[0], sb[1], sc[0], sc[1]).transpose([0,2,4,1,3,5])
+
+sigmatripleproduct = odot3(sigmax, sigmay, sigmaz) - odot3(sigmax, sigmaz, sigmay) + odot3(sigmay, sigmaz, sigmax) - odot3(sigmay, sigmax, sigmaz) + odot3(sigmaz, sigmax, sigmay) - odot3(sigmaz, sigmay, sigmax)
 
 def exp_one_body_gate(g):
     return expm(g)
@@ -44,8 +50,6 @@ def exp_two_body_gate(g):
     g = g.reshape(p1*p2, p1*p2)
     g = expm(g)
     return g.reshape(p1, p2, p1, p2)
-
-
 
 def exp_sigmax(alpha):
     """
@@ -84,12 +88,12 @@ def exp_sigmax_sigmax(alpha):
     return g
 
 def exp_sigmay_sigmay(alpha):
-    #g = np.zeros((2,2,2,2))
-    #g[0,0,0,0] = g[0,1,0,1] = g[1,0,1,0] = g[1,1,1,1] = np.cosh(alpha)
-    #g[0,0,1,1] = g[1,1,0,0] = np.sinh(alpha)
-    #g[0,1,1,0] = g[1,0,0,1] = -np.sinh(alpha)
-    #return g
-    return exp_two_body_gate(alpha * sigmaysigmay)
+    g = np.zeros((2,2,2,2))
+    g[0,0,0,0] = g[0,1,0,1] = g[1,0,1,0] = g[1,1,1,1] = np.cosh(alpha)
+    g[0,0,1,1] = g[1,1,0,0] = -np.sinh(alpha)
+    g[0,1,1,0] = g[1,0,0,1] = np.sinh(alpha)
+    return g
+    #return exp_two_body_gate(alpha * sigmaysigmay)
 
 def exp_sigmaz_sigmaz(alpha):
     """
@@ -110,17 +114,22 @@ def exp_sigmaz_sigmaz(alpha):
     g[0,1,0,1] = g[1,0,1,0] = np.exp(-alpha)
     return g
 
-def exp_sigmap_sigmam(a):
-    g = np.zeros((2,2,2,2))
-    g[0,0,0,0] = g[0,1,0,1] = g[1,0,1,0] = g[1,1,1,1] = 1.0
-    g[1,0,0,1] = a
-    return g
+def exp_sigma_sigma(alpha):
+    x = exp_sigmax_sigmax(alpha).reshape(4, 4)
+    y = exp_sigmay_sigmay(alpha).reshape(4, 4)
+    z = exp_sigmaz_sigmaz(alpha).reshape(4, 4)
+    return dot(dot(x, y), z)
 
-def exp_sigmam_sigmap(a):
-    g = np.zeros((2,2,2,2))
-    g[0,0,0,0] = g[0,1,0,1] = g[1,0,1,0] = g[1,1,1,1] = 1.0
-    g[0,1,1,0] = a
-    return g
+def build_operator_block(o):
+    b = o[0]
+    for j in xrange(1, len(o)):
+        b = np.outer(b, o[j])
+    return b.transpose([2*j for j in xrange(len(o))] + [2*j+1 for j in xrange(len(o))])
+
+def embed_one_body_gate_into_block(g, j, n, p):
+    # example: j=1, n=4 returns (id odot g odot id odot id)
+    I = np.identity(p)
+    return build_operator_block([I]*j + [g] + [I]*(n-j-1)).reshape(g.shape[0]*p**(n-1), g.shape[1]*p**(n-1))
 
 def exp_sigmaz_sigmaz_mpo(alpha):
     """

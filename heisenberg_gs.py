@@ -21,28 +21,38 @@ statefile = sys.argv[7]
 trotter_second_order = True
 fast_full_update = False
 
+backup_interval = 10
 if "-backup" in sys.argv:
     backup_interval = int(sys.argv[sys.argv.index("-backup") + 1])
-else:
-    backup_interval = 10
+
+tebd_log_interval = 1
+if "-loginterval" in sys.argv:
+    tebd_log_interval = int(sys.argv[sys.argv.index("-loginterval") + 1])
 
 name_suffix = ""
 if "-namesuffix" in sys.argv:
     name_suffix = "_" + sys.argv[sys.argv.index("-namesuffix") + 1]
 
-#np.random.seed(523451109)
-#np.random.seed(904265234)
+tebd_mode = "fu"
+if "-funogauge" in sys.argv:
+    tebd_mode = "funogauge"
+elif "-su" in sys.argv:
+    tebd_mode = "su"
 
 globallog.write("heisenberg_gs.py, D={:d}, chi={:d}, J={:d}, h={:f}, tau={:.0e}, iterations={:d}, trotter order {:d}{:s}{:s}\n".format(D, chi, J, h, tau, maxiterations, 2 if trotter_second_order else 1, ", ffu" if fast_full_update else "", "" if name_suffix == "" else ", name_suffix=" + name_suffix))
 
+basepath = "output_heisenberg/"
+simulation_name = "J={:d}_h={:f}_D={:d}_chi={:d}_tau={:.6f}{:s}{:s}".format(J, h, D, chi, tau, "" if tebd_mode == "fu" else "_"+tebd_mode, name_suffix)
+
+if not ("-writehere" in sys.argv):
+    f = open(basepath + "log_tfi_gs_2d_D={:d}_chi={:d}_h={:f}_tau={:.0e}{:s}{:s}.txt".format(D, chi, h, tau, "" if tebd_mode == "fu" else "_"+tebd_mode, name_suffix), "a")
+    sys.stdout = f
+    sys.stderr = f
+
 def test_fct(a, A):
     n = len(a)
-    #P = map(lambda b: peps.make_double_layer(b, o=gates.sigmap), a)
-    #M = map(lambda b: peps.make_double_layer(b, o=gates.sigmam), a)
     Z = map(lambda b: peps.make_double_layer(b, o=gates.sigmaz), a)
     AT = map(lambda B: B.transpose([1,2,3,0]), A)
-    #PT = map(lambda B: B.transpose([1,2,3,0]), P)
-    #MT = map(lambda B: B.transpose([1,2,3,0]), M)
     ZT = map(lambda B: B.transpose([1,2,3,0]), Z)
     
     X = map(lambda b: peps.make_double_layer(b, o=gates.sigmax), a)
@@ -51,13 +61,9 @@ def test_fct(a, A):
     YT = map(lambda B: B.transpose([1,2,3,0]), Y)
     
     def test_fct_impl(e):
-        #c_pm = 0
-        #c_mp = 0
-        c_zz = 0
-        
         c_xx = 0
         c_yy = 0
-        
+        c_zz = 0
         mz = [0, 0]
         
         for j in xrange(n):
@@ -66,35 +72,26 @@ def test_fct(a, A):
             
             e2 = e.get_bond_environment_horizontal(j)
             norm = e2.contract(A[j], A[lut[j,1,0]])
-            #c_pm += e2.contract(P[j], M[lut[j,1,0]]) / norm
-            #c_mp += e2.contract(M[j], P[lut[j,1,0]]) / norm
             c_xx += e2.contract(X[j], X[lut[j,1,0]]) / norm
             c_yy += np.real(e2.contract(Y[j], Y[lut[j,1,0]]) / norm)
             c_zz += e2.contract(Z[j], Z[lut[j,1,0]]) / norm
             
             e2 = e.get_bond_environment_vertical(j)
             norm = e2.contract(AT[j], AT[lut[j,0,1]])
-            #c_pm += e2.contract(PT[j], MT[lut[j,0,1]]) / norm
-            #c_mp += e2.contract(MT[j], PT[lut[j,0,1]]) / norm
             c_xx += e2.contract(XT[j], XT[lut[j,0,1]]) / norm
             c_yy += np.real(e2.contract(YT[j], YT[lut[j,0,1]]) / norm)
             c_zz += e2.contract(ZT[j], ZT[lut[j,0,1]]) / norm
         
-        #c_pm /= (2*n)
-        #c_mp /= (2*n)
         c_xx /= (2*n)
         c_yy /= (2*n)
         c_zz /= (2*n)
-        #E = 2*J*(c_zz + 0.5*(c_pm+*c_mp)) + h*0.5*(mz[0] + mz[1])
         E = 2*J*(c_xx + c_yy + c_zz) + h*0.5*(mz[0] + mz[1])
         
-        #return mz + [c_pm, c_mp, c_zz, E]
         return mz + [c_xx, c_yy, c_zz, E]
     return test_fct_impl
 
-basepath = "output_heisenberg/"
 if os.path.isfile(basepath + statefile):
-    a, nns = peps.load(basepath + statefile, dtype=complex)
+    a, nns = peps.load(basepath + statefile)
     lut = util.build_lattice_lookup_table(nns, [4,4])
     if a[0].shape[1] < D:
         a = peps.increase_bond_dimension(a, D)
@@ -132,9 +129,8 @@ def get_gates(dt):
         g1b = gates.exp_sigmaz(+0.5*dt*h)
         g1 = [(0,g1a), (1,g1b)]
         return g1, g2, g1
-    
 
-env_contractor = tebd.CTMRGEnvContractor(lut, chi, test_fct, 1e-9, 1e-14, max_iterations_per_update=500, ctmrg_verbose=True, plotonfail=False)
-simulation_name = "J={:d}_h={:f}_D={:d}_chi={:d}_tau={:.6f}{:s}".format(J, h, D, chi, tau, name_suffix)
-tebd.itebd_v2(a, lut, t0, tau, maxiterations*tau, get_gates, env_contractor, basepath, simulation_name, backup_interval)
+
+env_contractor = tebd.CTMRGEnvContractor(lut, chi, test_fct, 1e-9, 1e-14, max_iterations_per_update=500, ctmrg_verbose=True)
+tebd.itebd_v2(a, lut, t0, tau, maxiterations*tau, get_gates, env_contractor, basepath, simulation_name, backup_interval, mode=tebd_mode, log_interval=tebd_log_interval)
 
