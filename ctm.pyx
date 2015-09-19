@@ -482,7 +482,7 @@ def ctmrg(a, lut, chi, env=None, tester=None, max_iterations=10000, verbose=Fals
     #       |          |          |          |
     #       l          k          j          m
 
-    num_tries = 3
+    num_tries = 10
     for num_try in xrange(num_tries):
         failed = False
 
