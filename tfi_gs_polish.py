@@ -7,6 +7,7 @@ import util
 import os
 import globallog
 from time import time
+from polish import polish
 
 t0 = time()
 
@@ -70,10 +71,20 @@ def test_fct(a, A):
 a, nns = peps.load(basepath_in + statefile)
 lut = util.build_lattice_lookup_table(nns, [4,4])
 
-env_contractor = tebd.CTMRGEnvContractor(lut, chi, test_fct, 1e-12, 1e-15)
-a = tebd.polish(a, lut, env_contractor, pepsfilename=(basepath_out + statefile))
+#env_contractor = tebd.CTMRGEnvContractor(lut, chi, test_fct, 1e-12, 1e-15)
+#a = tebd.polish(a, lut, env_contractor, pepsfilename=(basepath_out + statefile))
 
-peps.save(a, lut, basepath_out + statefile)
+#peps.save(a, lut, basepath_out + statefile)
+
+#print "tfi_gs_polish.py done; needed {:f} seconds".format(time() - t0)
+
+
+ecf = tebd.CTMRGEnvContractorFactory(lut, chi, test_fct, 1e-12, 1e-15)
+a = polish(a, lut, ecf, num_workers=num_workers)
+
+peps.save(a, lut, basepath + statefile[statefile.rfind("/")+1:])
 
 print "tfi_gs_polish.py done; needed {:f} seconds".format(time() - t0)
+
+
 
