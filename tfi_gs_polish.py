@@ -16,6 +16,10 @@ h = float(sys.argv[2])
 statefile = sys.argv[3]
 output_to_terminal = "-writehere" in sys.argv
 
+num_workers = 1
+if "-workers" in sys.argv:
+    num_workers = int(sys.argv[sys.argv.index("-workers") + 1])
+
 globallog.write("tfi_gs_polish.py, chi={:d}, h={:f}, statefile=\"{:s}\"\n".format(chi, h, statefile))
 
 #f = open("output/global.log", "a")
