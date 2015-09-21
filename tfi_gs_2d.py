@@ -34,7 +34,7 @@ globallog.write("tfi_gs_2d.py, D={:d}, chi={:d}, h={:f}, tau={:.0e}, iterations=
 
 basepath = "output_tfi/"
 if name_suffix != "":
-    name_suffix = "_" + name
+    name_suffix = "_" + name_suffix
 
 if not output_to_terminal:
     f = open(basepath + "log_tfi_gs_2d_D={:d}_chi={:d}_h={:f}_tau={:.0e}{:s}.txt".format(D, chi, h, tau, name_suffix), "a")
