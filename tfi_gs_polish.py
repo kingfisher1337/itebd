@@ -86,7 +86,7 @@ lut = util.build_lattice_lookup_table(nns, [4,4])
 ecf = tebd.CTMRGEnvContractorFactory(lut, chi, test_fct, 1e-12, 1e-15)
 a = polish(a, lut, ecf, num_workers=num_workers)
 
-peps.save(a, lut, basepath + statefile[statefile.rfind("/")+1:])
+peps.save(a, lut, basepath_out + statefile[statefile.rfind("/")+1:])
 
 print "tfi_gs_polish.py done; needed {:f} seconds".format(time() - t0)
 
