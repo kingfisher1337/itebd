@@ -85,7 +85,6 @@ def _polish_cost_parallel(x, n, shape, lut, ecf, energy_idx, dx, num_workers):
     sys.stdout.write("\n")
     sys.stdout.flush()
     
-    print E
     return E, grad
 
 def polish(a, lut, env_contractor_factory, energy_idx=-1, num_workers=1):
