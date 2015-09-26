@@ -42,17 +42,25 @@ def _polish_cost_parallel_helper((x, n, shape, lut, ecf, energy_idx, dx, jmin, j
     ec = ecf.create()
     f = np.empty(jmax - jmin + 1 + evalf)
     
+    best = [1e100] * (energy_idx+1 if energy_idx > 0 else -energy_idx)
+    
     for j in xrange(jmin, jmax+1):
         y = np.copy(x)
         y[j] += dx
         ec.update(_vec_to_peps(y, n, shape))
         f[j-jmin] = ec.get_test_values()[energy_idx]
+        
+        if f[j-jmin] < best[energy_idx]:
+            best = ec.get_test_values()
     
     if evalf:
         ec.update(_vec_to_peps(x, n, shape))
         f[-1] = ec.get_test_values()[energy_idx]
+        
+        if f[-1] < best[energy_idx]:
+            best = ec.get_test_values()
     
-    return f
+    return f, best
 
 def _polish_cost_parallel(x, n, shape, lut, ecf, energy_idx, dx, num_workers):
     num_fct_evals = len(x) + 1
@@ -68,9 +76,14 @@ def _polish_cost_parallel(x, n, shape, lut, ecf, energy_idx, dx, num_workers):
     pool = mp.Pool(processes=num_workers)
     res = pool.map(_polish_cost_parallel_helper, paramlist)
     
-    tmp = np.concatenate(res)
+    tmp = np.concatenate(map(lambda x: x[0], res))
     E = tmp[-1]
     grad = (tmp[:-1] - E) / dx
+    
+    for z in res[np.argmin(map(lambda x: x[1][energy_idx], res))][1]:
+        sys.stdout.write("{:.15e} ".format(z))
+    sys.stdout.write("\n")
+    sys.stdout.flush()
     
     print E
     return E, grad
