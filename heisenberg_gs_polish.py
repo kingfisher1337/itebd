@@ -1,12 +1,14 @@
 import numpy as np
+import sys
+import os
+from time import time
+
 import tebd
 import gates
-import sys
 import peps
 import util
-import os
 import globallog
-from time import time
+from polish import polish
 
 t0 = time()
 
@@ -14,6 +16,10 @@ chi = int(sys.argv[1])
 J = int(sys.argv[2])
 h = float(sys.argv[3])
 statefile = sys.argv[4]
+
+num_workers = 1
+if "-workers" in sys.argv:
+    num_workers = int(sys.argv[sys.argv.index("-workers") + 1])
 
 globallog.write("heisenberg_gs_polish.py, chi={:d}, J={:d}, h={:f}, statefile=\"{:s}\"\n".format(chi, J, h, statefile))
 
@@ -66,11 +72,19 @@ def test_fct(a, A):
         return mz + [c_xx, c_yy, c_zz, E]
     return test_fct_impl
 
-a, nns = peps.load(statefile)
+a, nns = peps.load(statefile, dtype=complex)
 lut = util.build_lattice_lookup_table(nns, [4,4])
 
-env_contractor = tebd.CTMRGEnvContractor(lut, chi, test_fct, 1e-12, 1e-15)
-a = tebd.polish(a, lut, env_contractor, pepsfilename=(basepath + statefile[statefile.rfind("/")+1:]))
+if np.all(map(lambda b: (np.imag(b) < 1e-15).all(), a)):
+    a = map(lambda b: np.real(b), a)
+
+#env_contractor = tebd.CTMRGEnvContractor(lut, chi, test_fct, 1e-12, 1e-15)
+#a = tebd.polish(a, lut, env_contractor, pepsfilename=(basepath + statefile[statefile.rfind("/")+1:]))
+
+#a = tebd.polish(a, lut, chi, test_fct, pepsfilename=(basepath + statefile[statefile.rfind("/")+1:]))
+
+ecf = tebd.CTMRGEnvContractorFactory(lut, chi, test_fct, 1e-12, 1e-15)
+a = polish(a, lut, ecf, num_workers=num_workers)
 
 peps.save(a, lut, basepath + statefile[statefile.rfind("/")+1:])
 
