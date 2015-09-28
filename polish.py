@@ -75,6 +75,7 @@ def _polish_cost_parallel(x, n, shape, lut, ecf, energy_idx, dx, num_workers):
     
     pool = mp.Pool(processes=num_workers)
     res = pool.map(_polish_cost_parallel_helper, paramlist)
+    pool.close()
     
     tmp = np.concatenate(map(lambda x: x[0], res))
     E = tmp[-1]
