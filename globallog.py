@@ -8,6 +8,6 @@ def write(msg):
     pid = os.getpid()
 
     f = open("output/global.log", "a")
-    f.write("{:s}, host: {:s}, pid: {:d}, {:s}\n".format(t, host, pid, msg))
+    f.write("{0:s}, host: {1:s}, pid: {2:d}, {3:s}\n".format(t, host, pid, msg))
     f.close()
 
