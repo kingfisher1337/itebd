@@ -108,7 +108,7 @@ class CTMRGGenericTester:
         nval = self.__f(e)
         self.__errs.append(np.inf if len(self.__vals) < self.__period else np.abs(1 - nval / self.__vals[-1]))
         if self.__verbose:
-            print "[CTMRGGenericTester.test] error is {:e}".format(self.__errs[-1])
+            print "[CTMRGGenericTester.test] error is {0:e}".format(self.__errs[-1])
         self.__vals.append(nval)
         self.__converged = np.array(map(lambda e: e < self.__err, self.__errs[-self.__period:])).all()
         return self.__converged
@@ -169,7 +169,7 @@ class CTMRGTester:
                 nconverged = False
         
         if self.__verbose:
-            print "[CTMRGTester.test] largest relative error is {:e}; largest absolute error is {:e}".format(np.max(nerr), np.max(nerrabs))
+            print "[CTMRGTester.test] largest relative error is {0:e}; largest absolute error is {1:e}".format(np.max(nerr), np.max(nerrabs))
         
         self.__vals.append(nval)
         self.__errs.append(nerr)
@@ -526,7 +526,7 @@ def ctmrg(a, lut, chi, env=None, tester=None, max_iterations=10000, verbose=Fals
                 env.c3, env.t2, env.c2 = _ctmrg_step(a2, a3, a0, a1, env.c3, env.c4, env.c1, env.c2, env.t3, env.t4, env.t1, env.t2, lut, chi, [ 1,  0])
                 env.c4, env.t3, env.c3 = _ctmrg_step(a3, a0, a1, a2, env.c4, env.c1, env.c2, env.c3, env.t4, env.t1, env.t2, env.t3, lut, chi, [ 0,  1])
             except np.linalg.LinAlgError:
-                print "[ctmrg] failed in iteration {:d}/{:d}".format(it, max_iterations)
+                sys.stderr.write("[ctmrg] failed in iteration {0:d}/{1:d}\n".format(it, max_iterations))
                 env = "random"
                 failed = True
                 if num_try + 1 == num_tries:
@@ -539,10 +539,10 @@ def ctmrg(a, lut, chi, env=None, tester=None, max_iterations=10000, verbose=Fals
 
         if not failed:
             if not converged:
-                sys.stderr.write("[ctmrg] warning: did not converge within {:d} iterations!\n".format(max_iterations))
+                sys.stderr.write("[ctmrg] warning: did not converge within {0:d} iterations!\n".format(max_iterations))
                 
             if verbose:
-                print "[ctmrg] needed {:d} iterations and {:f} seconds".format(it+1, time()-t0)
+                print "[ctmrg] needed {0:d} iterations and {1:f} seconds".format(it+1, time()-t0)
             
             return env
 
@@ -682,10 +682,10 @@ def ctmrg_1x1_rotsymm(a, chi, env=None, tester=None, max_iterations=1000000, ite
                 break
 
     if not converged:
-        sys.stderr.write("[ctmrg_1x1_rotsymm] warning: did not converge within {:d} iterations!\n".format(max_iterations))
+        sys.stderr.write("[ctmrg_1x1_rotsymm] warning: did not converge within {0:d} iterations!\n".format(max_iterations))
 
     if verbose:
-        print "[ctmrg_1x1_rotsymm] needed {:d} iterations and {:f} seconds".format(it+1, time()-t0)    
+        print "[ctmrg_1x1_rotsymm] needed {0:d} iterations and {1:f} seconds".format(it+1, time()-t0)    
     
     return env
 
@@ -747,10 +747,10 @@ def ctmrg_1x1_hermitian(a, chi, env=None, tester=None, max_iterations=100000, it
                 break
                 
     if not converged:
-        sys.stderr.write("[ctmrg_1x1_hermitian] warning: did not converge within {:d} iterations!\n".format(max_iterations))
+        sys.stderr.write("[ctmrg_1x1_hermitian] warning: did not converge within {0:d} iterations!\n".format(max_iterations))
 
     if verbose:
-        print "[ctmrg_1x1_hermitian] needed {:d} iterations and {:f} seconds".format(it+1, time()-t0)    
+        print "[ctmrg_1x1_hermitian] needed {0:d} iterations and {1:f} seconds".format(it+1, time()-t0)    
         
     return env
 
