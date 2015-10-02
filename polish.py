@@ -82,7 +82,7 @@ def _polish_cost_parallel(x, n, shape, lut, ecf, energy_idx, dx, num_workers):
     grad = (tmp[:-1] - E) / dx
     
     for z in res[np.argmin(map(lambda x: x[1][energy_idx], res))][1]:
-        sys.stdout.write("{:.15e} ".format(z))
+        sys.stdout.write("{0:.15e} ".format(z))
     sys.stdout.write("\n")
     sys.stdout.flush()
     
