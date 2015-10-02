@@ -21,7 +21,7 @@ num_workers = 1
 if "-workers" in sys.argv:
     num_workers = int(sys.argv[sys.argv.index("-workers") + 1])
 
-globallog.write("heisenberg_gs_polish.py, chi={:d}, J={:d}, h={:f}, statefile=\"{:s}\"\n".format(chi, J, h, statefile))
+globallog.write("heisenberg_gs_polish.py, chi={0:d}, J={1:d}, h={2:f}, statefile=\"{3:s}\"\n".format(chi, J, h, statefile))
 
 basepath = "output_heisenberg_polish/"
 
@@ -88,5 +88,5 @@ a = polish(a, lut, ecf, num_workers=num_workers)
 
 peps.save(a, lut, basepath + statefile[statefile.rfind("/")+1:])
 
-print "heisenberg_gs_polish.py done; needed {:f} seconds".format(time() - t0)
+print "heisenberg_gs_polish.py done; needed {0:f} seconds".format(time() - t0)
 

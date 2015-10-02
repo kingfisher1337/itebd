@@ -31,7 +31,7 @@ def _polish_cost_serial(x, n, shape, lut, ecf, energy_idx, dx):
     grad = (grad - E) / dx
     
     for z in best:
-        sys.stdout.write("{:.15e} ".format(z))
+        sys.stdout.write("{0:.15e} ".format(z))
     sys.stdout.write("\n")
     sys.stdout.flush()
     
