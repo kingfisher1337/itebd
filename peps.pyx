@@ -165,7 +165,7 @@ def save(a, lut, filename):
         if not first:
             f.write(" ")
         first = False
-        f.write("{:d}".format(lut[j,1,0]))
+        f.write("{0:d}".format(lut[j,1,0]))
     f.write("\n")
         
     first = True
@@ -173,20 +173,20 @@ def save(a, lut, filename):
         if not first:
             f.write(" ")
         first = False
-        f.write("{:d}".format(lut[j,0,1]))
+        f.write("{0:d}".format(lut[j,0,1]))
     f.write("\n")
     
     for j in xrange(n):
-        f.write("{:d}".format(j))
+        f.write("{0:d}".format(j))
         for D in a[j].shape:
-            f.write(" {:d}".format(D))
+            f.write(" {0:d}".format(D))
         f.write("\n")
         first = True
         for k in np.ndindex(a[j].shape):
             if not first:
                 f.write(" ")
             first = False
-            f.write("{:.15e}".format(a[j][k]))
+            f.write("{0:.15e}".format(a[j][k]))
         f.write("\n")
     
     f.close()
