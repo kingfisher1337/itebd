@@ -158,7 +158,7 @@ def save(a, lut, filename):
     f = open(filename, "w")
     
     n = len(a)
-    f.write("{:d}\n".format(n))
+    f.write("{0:d}\n".format(n))
     
     first = True
     for j in xrange(n):
