@@ -20,11 +20,7 @@ num_workers = 1
 if "-workers" in sys.argv:
     num_workers = int(sys.argv[sys.argv.index("-workers") + 1])
 
-globallog.write("tfi_gs_polish.py, chi={:d}, h={:f}, statefile=\"{:s}\"\n".format(chi, h, statefile))
-
-#f = open("output/global.log", "a")
-#f.write("tfi_gs_polish.py pid={:d}, chi={:d}, h={:f}, statefile=\"{:s}\"\n".format(os.getpid(), chi, h, statefile))
-#f.close()
+globallog.write("tfi_gs_polish.py, chi={0:d}, h={1:f}, statefile=\"{2:s}\"\n".format(chi, h, statefile))
 
 basepath_in = "output_tfi/"
 basepath_out = "output_tfi_polish/"
@@ -75,20 +71,13 @@ def test_fct(a, A):
 a, nns = peps.load(basepath_in + statefile)
 lut = util.build_lattice_lookup_table(nns, [4,4])
 
-#env_contractor = tebd.CTMRGEnvContractor(lut, chi, test_fct, 1e-12, 1e-15)
-#a = tebd.polish(a, lut, env_contractor, pepsfilename=(basepath_out + statefile))
-
-#peps.save(a, lut, basepath_out + statefile)
-
-#print "tfi_gs_polish.py done; needed {:f} seconds".format(time() - t0)
-
 
 ecf = tebd.CTMRGEnvContractorFactory(lut, chi, test_fct, 1e-12, 1e-15)
 a = polish(a, lut, ecf, num_workers=num_workers)
 
 peps.save(a, lut, basepath_out + statefile[statefile.rfind("/")+1:])
 
-print "tfi_gs_polish.py done; needed {:f} seconds".format(time() - t0)
+print "tfi_gs_polish.py done; needed {0:f} seconds".format(time() - t0)
 
 
 
