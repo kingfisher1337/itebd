@@ -8,7 +8,8 @@ import gates
 import peps
 import util
 import globallog
-from polish import polish
+#from polish import polish
+import polish
 
 t0 = time()
 
@@ -83,8 +84,12 @@ if np.all(map(lambda b: (np.imag(b) < 1e-15).all(), a)):
 
 #a = tebd.polish(a, lut, chi, test_fct, pepsfilename=(basepath + statefile[statefile.rfind("/")+1:]))
 
-ecf = tebd.CTMRGEnvContractorFactory(lut, chi, test_fct, 1e-12, 1e-15)
-a = polish(a, lut, ecf, num_workers=num_workers)
+def save_callback(a):
+    peps.save(a, lut, basepath + statefile[statefile.rfind("/")+1:])
+
+ecf = tebd.CTMRGEnvContractorFactory(lut, chi, test_fct, 1e-12, 1e-15, max_iterations_per_update=1000)
+a = polish.polish(a, lut, ecf, num_workers=num_workers, peps_save_callback=save_callback)
+#a = polish.polish_fast(a, lut, ecf)
 
 peps.save(a, lut, basepath + statefile[statefile.rfind("/")+1:])
 

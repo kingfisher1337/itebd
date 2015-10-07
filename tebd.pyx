@@ -233,6 +233,9 @@ class CTMRGEnvContractor:
     def get_environment(self):
         return self.e
     
+    def get_test_function(self):
+        return self.test_fct
+    
     def get_test_values(self):
         return self.test_values
     
