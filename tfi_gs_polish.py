@@ -71,6 +71,8 @@ def test_fct(a, A):
 a, nns = peps.load(basepath_in + statefile)
 lut = util.build_lattice_lookup_table(nns, [4,4])
 
+def save_callback(a):
+    peps.save(a, lut, basepath_out + statefile[statefile.rfind("/")+1:])
 
 ecf = tebd.CTMRGEnvContractorFactory(lut, chi, test_fct, 1e-12, 1e-15)
 a = polish(a, lut, ecf, num_workers=num_workers)
