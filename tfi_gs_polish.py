@@ -75,7 +75,7 @@ def save_callback(a):
     peps.save(a, lut, basepath_out + statefile[statefile.rfind("/")+1:])
 
 ecf = tebd.CTMRGEnvContractorFactory(lut, chi, test_fct, 1e-12, 1e-15)
-a = polish(a, lut, ecf, num_workers=num_workers)
+a = polish(a, lut, ecf, num_workers=num_workers, peps_save_callback=save_callback)
 
 peps.save(a, lut, basepath_out + statefile[statefile.rfind("/")+1:])
 
