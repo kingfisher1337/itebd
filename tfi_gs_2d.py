@@ -22,10 +22,17 @@ statefile = sys.argv[6]
 fast_full_update = "-ffu" in sys.argv
 trotter_second_order = "-trotter2" in sys.argv
 output_to_terminal = "-writehere" in sys.argv
+
 if "-backup" in sys.argv:
     backup_interval = int(sys.argv[sys.argv.index("-backup") + 1])
 else:
     backup_interval = 100
+
+if "-loginterval" in sys.argv:
+    log_interval = int(sys.argv[sys.argv.index("-loginterval") + 1])
+else:
+    log_interval = 100
+
 name_suffix = ""
 if "-namesuffix" in sys.argv:
     name_suffix = sys.argv[sys.argv.index("-namesuffix") + 1]
@@ -116,5 +123,7 @@ def get_gates(dt):
 
 env_contractor = tebd.CTMRGEnvContractor(lut, chi, test_fct, 1e-12, 1e-15, ctmrg_verbose=True)
 simulation_name = "D={:d}_chi={:d}_h={:f}_tau={:.6f}{:s}{:s}".format(D, chi, h, tau, "_trotter2" if trotter_second_order else "", name_suffix)
-tebd.itebd_v2(a, lut, t0, tau, maxiterations*tau, get_gates, env_contractor, basepath, simulation_name, backup_interval, mode="fu")
+#tebd.itebd_v2(a, lut, t0, tau, maxiterations*tau, get_gates, env_contractor, basepath, simulation_name, backup_interval, mode="fu")
+
+tebd.itebd_v2(a, lut, t0, tau, maxiterations*tau, get_gates, env_contractor, basepath, simulation_name, backup_interval, mode="su", log_interval=log_interval)
 
