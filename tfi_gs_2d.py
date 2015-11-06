@@ -32,6 +32,10 @@ if "-loginterval" in sys.argv:
     log_interval = int(sys.argv[sys.argv.index("-loginterval") + 1])
 else:
     log_interval = 100
+    
+mode = "fu"
+if "-mode" in sys.argv:
+    mode = sys.argv[sys.argv.index("-mode") + 1]
 
 name_suffix = ""
 if "-namesuffix" in sys.argv:
@@ -125,5 +129,5 @@ env_contractor = tebd.CTMRGEnvContractor(lut, chi, test_fct, 1e-12, 1e-15, ctmrg
 simulation_name = "D={:d}_chi={:d}_h={:f}_tau={:.6f}{:s}{:s}".format(D, chi, h, tau, "_trotter2" if trotter_second_order else "", name_suffix)
 #tebd.itebd_v2(a, lut, t0, tau, maxiterations*tau, get_gates, env_contractor, basepath, simulation_name, backup_interval, mode="fu")
 
-tebd.itebd_v2(a, lut, t0, tau, maxiterations*tau, get_gates, env_contractor, basepath, simulation_name, backup_interval, mode="su", log_interval=log_interval)
+tebd.itebd_v2(a, lut, t0, tau, maxiterations*tau, get_gates, env_contractor, basepath, simulation_name, backup_interval, mode=mode, log_interval=log_interval)
 
