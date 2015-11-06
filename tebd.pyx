@@ -387,6 +387,8 @@ def itebd_v2(a, lut, t0, dt, tmax, gate_callback, env_contractor, log_dir, simul
                     b[j] = b[j].swapaxes(2,4) * np.sqrt(x[j])
                     b[j] = b[j].swapaxes(3,4) * np.sqrt(y[j])
                     b[j] = b[j].transpose([0,2,3,4,1])
+                    
+                t = t0 + (it+1)*dt
                 peps.save(b, lut, log_dir + simulation_name + "_state_t={0:011.6f}.peps".format(t))
                 print "saved peps at t={0:011.6f}".format(t)
                 
