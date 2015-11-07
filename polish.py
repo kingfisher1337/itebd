@@ -106,8 +106,8 @@ def _polish_cost_parallel(x, n, shape, lut, ecf, energy_idx, dx, num_workers, pe
     
     return E, grad
 
-def polish(a, lut, env_contractor_factory, energy_idx=-1, num_workers=1, peps_save_callback=None):
-    dx = 1.4901161193847656e-08
+def polish(a, lut, env_contractor_factory, energy_idx=-1, num_workers=1, peps_save_callback=None, gtol=1e-6, dx=None):
+    dx = 1.4901161193847656e-08 if dx is None else 1.4901161193847656e-08 * dx
     if num_workers == 1:
         res = minimize(
             _polish_cost_serial, 
@@ -122,7 +122,7 @@ def polish(a, lut, env_contractor_factory, energy_idx=-1, num_workers=1, peps_sa
             _peps_to_vec(a), 
             jac=True, 
             args=(len(a), a[0].shape, lut, env_contractor_factory, energy_idx, dx, num_workers, peps_save_callback), 
-            method="BFGS", options={"disp":True})
+            method="BFGS", options={"disp":True, "gtol":gtol})
         return _vec_to_peps(res.x, len(a), a[0].shape)
 
 
