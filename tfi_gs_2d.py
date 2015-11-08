@@ -44,6 +44,9 @@ if "-namesuffix" in sys.argv:
 globallog.write("tfi_gs_2d.py, D={:d}, chi={:d}, h={:f}, tau={:.0e}, iterations={:d}, trotter order {:d}{:s}{:s}\n".format(D, chi, h, tau, maxiterations, 2 if trotter_second_order else 1, ", ffu" if fast_full_update else "", "" if name_suffix == "" else ", name_suffix=" + name_suffix))
 
 basepath = "output_tfi/"
+if mode == "su":
+    basepath = "output_tfi_su/"
+
 if name_suffix != "":
     name_suffix = "_" + name_suffix
 
